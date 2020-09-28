@@ -12,6 +12,21 @@ const format = {
     ["_3", (view,a) => view.getFloat32(a+88,true)],
     ["CharacterName", (view,a) => str(view,a+92,32)]
   ],
+  "TES3DATA": [ ['FileSize', (view,a) => view.getBigUint64(a,true)] ],
+  "TES3MAST": [ ['name', str] ],
+  "ALCHNAME": [ ['id', str] ],
+  "ALCHMODL": [ ['model', str] ],
+  "ALCHTEXT": [ ['icon', str] ],
+  "ALCHFNAM": [ ['name', str] ],
+  "ALCHALDT": [
+    ['weight', (view,a) => view.getFloat32(a,true)],
+    ['value', (view,a) => view.getUint32(a+4,true)],
+    ['autocalc', (view,a) => view.getUint32(a+8,true)]
+  ],
+  "ALCHENAM": [
+    ['effectID', (view,a) => view.getUint16(a,true)],
+    ['_2', (view,a,n) => view.buffer.slice(a+2,a+n)] // unknown
+  ],
 };
 
 const utf8decoder = new TextDecoder("utf-8");
@@ -42,7 +57,7 @@ function Struct(view,a,parent=null) {
     if (fmt) {
       this.data = { };
       for (const x of fmt)
-        this.data[x[0]] = x[1](view,a);
+        this.data[x[0]] = x[1](view,a,this.size);
     } else {
       this.data = view.buffer.slice(a,a+this.size);
     }
@@ -100,6 +115,8 @@ function read_es_file(file) {
     const p2 = $('<p class="mc">').appendTo(info);
     $('<span>').text(HEDR.name).appendTo(p2);
 
+    // console.log( recs[0] );
+
     if (HEDR.type==32) { // save file
       const div = $('<div id="img">').appendTo(info);
       draw(div,getrec('FMAP','MAPD').data,3);
@@ -109,12 +126,15 @@ function read_es_file(file) {
       $('<span>').text(GMDT.CharacterName).appendTo(p2);
       $('<span>').text(GMDT.CellName).appendTo(p2);
     }
+    // TODO: draw in async function, same for list of records
 
     // show records
     // const div_recs = $('#records');
     // for (const rec of recs) {
     //   $('<p>').text(rec.tag).appendTo(div_recs);
     // }
+
+    console.log( recs.filter(x => x.tag=='ALCH') );
 
   };
   reader.readAsArrayBuffer(file);
