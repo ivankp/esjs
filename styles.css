@@ -1,0 +1,16 @@
+@font-face {
+  font-family: MagicCards;
+  src: url('magic_cards.ttf') format('truetype');
+}
+
+.tt { font-family: monospace; }
+.mc { font-family: MagicCards; }
+
+#img > * {
+  margin: 1px;
+  vertical-align: top;
+}
+
+#file_info > p > span:not(:last-child):after {
+  content: ', ';
+}
