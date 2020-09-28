@@ -3,7 +3,7 @@ const format = {
     ['version', (view,a) => view.getFloat32(a,true)],
     ['type', (view,a) => view.getUint32(a+4,true)],
     ['author', (view,a) => str(view,a+8,32)],
-    ['name', (view,a) => str(view,a+40,256)],
+    ['description', (view,a) => str(view,a+40,256)],
     ['numrecs', (view,a) => view.getUint32(a+296,true)]
   ],
   "TES3GMDT": [
@@ -113,7 +113,7 @@ function read_es_file(file) {
 
     const HEDR = getrec('TES3','HEDR').data;
     const p2 = $('<p class="mc">').appendTo(info);
-    $('<span>').text(HEDR.name).appendTo(p2);
+    $('<span>').text(HEDR.description).appendTo(p2);
 
     // console.log( recs[0] );
 
@@ -134,7 +134,16 @@ function read_es_file(file) {
     //   $('<p>').text(rec.tag).appendTo(div_recs);
     // }
 
-    console.log( recs.filter(x => x.tag=='ALCH') );
+    $('#find_form').show();
+    const select1 = $('#tag1');
+    const tags1 = new Set();
+    for (let i=1; i<recs.length; ++i) // skip TES3
+      tags1.add(recs[i].tag);
+    Array.from(tags1).sort().forEach(
+      x => $('<option>').text(x).appendTo(select1)
+    );
+
+    // console.log( recs.filter(x => x.tag=='ALCH') );
 
   };
   reader.readAsArrayBuffer(file);
@@ -148,4 +157,5 @@ $(() => {
       read_es_file(files[0]);
     } else alert('Invalid input file');
   });
+  $('#find_form').hide();
 });
