@@ -1,3 +1,19 @@
+const format = {
+  "TES3HEDR": [
+    ['version', (view,a) => view.getFloat32(a,true)],
+    ['type', (view,a) => view.getUint32(a+4,true)],
+    ['author', (view,a) => str(view,a+8,32)],
+    ['name', (view,a) => str(view,a+40,256)],
+    ['numrecs', (view,a) => view.getUint32(a+296,true)]
+  ],
+  "TES3GMDT": [
+    ["_1", (view,a) => Array(6).map((x,i) => view.getFloat32(a+i*4,true))],
+    ["CellName", (view,a) => str(view,a+24,64)],
+    ["_3", (view,a) => view.getFloat32(a+88,true)],
+    ["CharacterName", (view,a) => str(view,a+92,32)]
+  ],
+};
+
 const utf8decoder = new TextDecoder("utf-8");
 function str(view,a,n) {
   while (n>0 && view.getUint8(a+n-1)==0) --n;
@@ -22,14 +38,11 @@ function Struct(view,a,parent=null) {
       a += x.bytes;
     }
   } else {
-    if (this.tag=='HEDR' && parent.tag=='TES3') {
-      this.data = {
-        version: view.getFloat32(a,true),
-        type: view.getUint32(a+4,true),
-        author: str(view,a+8,32),
-        name: str(view,a+40,256),
-        nrecs: view.getUint32(a+296,true)
-      };
+    const fmt = format[parent.tag+this.tag] || format[this.tag];
+    if (fmt) {
+      this.data = { };
+      for (const x of fmt)
+        this.data[x[0]] = x[1](view,a);
     } else {
       this.data = view.buffer.slice(a,a+this.size);
     }
@@ -66,8 +79,8 @@ function read_es_file(file) {
     const size = view.byteLength;
 
     const info = $('#file_info').empty();
-    const info_p = $('<p class="tt">').appendTo(info);
-    $('<span>').text(size+' bytes').appendTo(info_p);
+    const p1 = $('<p class="tt">').appendTo(info);
+    $('<span>').text(size+' bytes').appendTo(p1);
 
     if (str(view,0,4)!="TES3") {
       alert("wrong initial bytes");
@@ -81,16 +94,27 @@ function read_es_file(file) {
       a += x.bytes;
     }
     function getrec(a,b) { return recs.find(x => x.tag==a).find(b); }
-    $('<span>').text(recs.length-1+' records').appendTo(info_p);
+    $('<span>').text(recs.length-1+' records').appendTo(p1);
 
     const HEDR = getrec('TES3','HEDR').data;
-    info.append($('<p class="mc">').text(HEDR.name));
+    const p2 = $('<p class="mc">').appendTo(info);
+    $('<span>').text(HEDR.name).appendTo(p2);
 
     if (HEDR.type==32) { // save file
       const div = $('<div id="img">').appendTo(info);
       draw(div,getrec('FMAP','MAPD').data,3);
       draw(div,getrec('TES3','SCRS').data,4);
+
+      const GMDT = getrec('TES3','GMDT').data;
+      $('<span>').text(GMDT.CharacterName).appendTo(p2);
+      $('<span>').text(GMDT.CellName).appendTo(p2);
     }
+
+    // show records
+    // const div_recs = $('#records');
+    // for (const rec of recs) {
+    //   $('<p>').text(rec.tag).appendTo(div_recs);
+    // }
 
   };
   reader.readAsArrayBuffer(file);

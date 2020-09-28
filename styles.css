@@ -12,5 +12,14 @@
 }
 
 #file_info > p > span:not(:last-child):after {
-  content: ', ';
+  content: '; ';
+}
+
+#records {
+  font-family: monospace;
+  font-size: 8pt;
+  margin: 5pt 0;
+}
+#records p {
+  margin: 0;
 }
