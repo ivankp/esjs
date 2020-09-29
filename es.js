@@ -160,6 +160,9 @@ function read_es_file(file) {
           Array.from(tags1).sort().forEach(
             x => $('<option>').text(x).appendTo(select1)
           );
+          select1.on('change',function(){
+            console.log( recs.filter(x => x.tag==$(this).val()) );
+          });
           tab.push(div);
         }
         return tab[2];
