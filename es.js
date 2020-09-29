@@ -35,7 +35,7 @@ function str(view,a,n) {
   return utf8decoder.decode(new Uint8Array(view.buffer,a,n));
 }
 
-function Struct(view,a,parent=null) {
+function Record(view,a,parent=null) {
   const a0 = a;
 
   this.tag = str(view,a,4); a+=4;
@@ -48,7 +48,7 @@ function Struct(view,a,parent=null) {
     this.children = [ ];
     const end = a + this.size;
     while (a < end) {
-      const x = new Struct(view,a,this);
+      const x = new Record(view,a,this);
       this.children.push(x);
       a += x.bytes;
     }
@@ -66,8 +66,18 @@ function Struct(view,a,parent=null) {
 
   this.bytes = a - a0;
 }
-Struct.prototype.find = function(tag) {
+Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag == tag);
+}
+
+function add_text(elem,text,d=', ') {
+  if (text.length) {
+    const text0 = elem.text();
+    if (text0.length)
+      elem.text(text0+d+text);
+    else
+      elem.text(text);
+  }
 }
 
 function draw(div,data,ch) {
@@ -95,7 +105,7 @@ function read_es_file(file) {
 
     const info = $('#file_info').empty();
     const p1 = $('<p class="tt">').appendTo(info);
-    $('<span>').text(size+' bytes').appendTo(p1);
+    add_text(p1,size+' bytes');
 
     if (str(view,0,4)!="TES3") {
       alert("wrong initial bytes");
@@ -104,46 +114,70 @@ function read_es_file(file) {
 
     const recs = [ ];
     for (let a=0; a<size; ) {
-      const x = new Struct(view,a);
+      const x = new Record(view,a);
       recs.push(x);
       a += x.bytes;
     }
     function getrec(a,b) { return recs.find(x => x.tag==a).find(b); }
-    $('<span>').text(recs.length-1+' records').appendTo(p1);
+    add_text(p1,recs.length-1+' records');
 
     const HEDR = getrec('TES3','HEDR').data;
     const p2 = $('<p class="mc">').appendTo(info);
-    $('<span>').text(HEDR.description).appendTo(p2);
+    add_text(p2,HEDR.description,'; ');
 
     // console.log( recs[0] );
 
-    if (HEDR.type==32) { // save file
-      const div = $('<div id="img">').appendTo(info);
-      draw(div,getrec('FMAP','MAPD').data,3);
-      draw(div,getrec('TES3','SCRS').data,4);
-
+    const is_save = HEDR.type==32;
+    if (is_save) {
       const GMDT = getrec('TES3','GMDT').data;
-      $('<span>').text(GMDT.CharacterName).appendTo(p2);
-      $('<span>').text(GMDT.CellName).appendTo(p2);
+      add_text(p2,GMDT.CharacterName+'; '+GMDT.CellName,'; ');
     }
-    // TODO: draw in async function, same for list of records
 
-    // show records
-    // const div_recs = $('#records');
-    // for (const rec of recs) {
-    //   $('<p>').text(rec.tag).appendTo(div_recs);
-    // }
-
-    $('#find_form').show();
-    const select1 = $('#tag1');
-    const tags1 = new Set();
-    for (let i=1; i<recs.length; ++i) // skip TES3
-      tags1.add(recs[i].tag);
-    Array.from(tags1).sort().forEach(
-      x => $('<option>').text(x).appendTo(select1)
-    );
-
-    // console.log( recs.filter(x => x.tag=='ALCH') );
+    var tab_defs = [
+      ['Pic',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          draw(div,getrec('TES3','SCRS').data,4);
+          tab.push(div);
+        }
+        return tab[2];
+      }],
+      ['Map',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          draw(div,getrec('FMAP','MAPD').data,3);
+          tab.push(div);
+        }
+        return tab[2];
+      }],
+      ['Records',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          const select1 = $('<select>').appendTo(div);
+          const tags1 = new Set();
+          for (let i=1; i<recs.length; ++i) // skip TES3 at 0
+            tags1.add(recs[i].tag);
+          Array.from(tags1).sort().forEach(
+            x => $('<option>').text(x).appendTo(select1)
+          );
+          tab.push(div);
+        }
+        return tab[2];
+      }]
+    ];
+    const tabs_div = $('#tabs').empty();
+    const tab_div = $('#tab').empty();
+    for (const tab of tab_defs) {
+      if (!is_save && tab[0] in ['pic','map']) continue;
+      $('<button>').appendTo(tabs).text(tab[0]).on('click',function(){
+        if (!$(this).hasClass('active')) {
+          $('#tabs > button.active').removeClass('active');
+          $(this).addClass('active');
+          tab_div.empty().append(tab[1](tab));
+        }
+      });
+    }
+    $('#main').show();
 
   };
   reader.readAsArrayBuffer(file);
@@ -157,5 +191,4 @@ $(() => {
       read_es_file(files[0]);
     } else alert('Invalid input file');
   });
-  $('#find_form').hide();
 });

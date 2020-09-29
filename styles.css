@@ -3,6 +3,8 @@
   src: url('magic_cards.ttf') format('truetype');
 }
 
+body { margin: 5px; }
+
 .tt { font-family: monospace; }
 .mc { font-family: MagicCards; }
 
@@ -11,15 +13,32 @@
   vertical-align: top;
 }
 
-#file_info > p > span:not(:last-child):after {
-  content: '; ';
-}
+#file_info > p:nth-child(1) { margin: 2pt 0; }
+#file_info > p:nth-child(2) { margin: 10pt 0; }
 
-#records {
-  font-family: monospace;
+#main {
+  font-family: sans-serif;
   font-size: 8pt;
-  margin: 5pt 0;
 }
-#records p {
-  margin: 0;
+#tabs {
+  margin: 0 0 5px 0;
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+#tabs button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  transition: 0.3s;
+  font-size: 12px;
+}
+#tabs button:hover {
+  background-color: #ddd;
+}
+#tabs button.active {
+  background-color: #ccc;
 }
