@@ -161,15 +161,21 @@ function read_es_file(file) {
     var tab_defs = [ // TODO: ensure lifetime
       ['Records',function(tab){
         const div = $('<div>');
-        const select1 = $('<select>').appendTo(div);
+        const sel = $('<select id="record_select">').appendTo(div);
+        $('<option>').appendTo(sel);
         const tags1 = new Set();
         for (let i=1; i<recs.length; ++i) // skip TES3 at 0
           tags1.add(recs[i].tag);
         Array.from(tags1).sort().forEach(
-          x => $('<option>').text(x).appendTo(select1)
+          x => $('<option>').text(x).appendTo(sel)
         );
-        select1.on('change',function(){
-          console.log( recs.filter(x => x.tag==$(this).val()) );
+        const subdiv = $('<div>').appendTo(div);
+        $('body').on('change','#record_select',function(){
+          const val = $(this).val();
+          subdiv.empty();
+          if (val) for (const rec of recs.filter(x => x.tag==val)) {
+            $('<div>').text(rec.tag).appendTo(subdiv);
+          }
         });
         return div
       }]
