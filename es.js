@@ -221,17 +221,19 @@ function read_es_file(file) {
             });
             if (pair[0] && pair[1])
               infos[pair[0]] = { acdt: pair[1], dial: dial };
-          } else
-          if (rec.tag=='NPC_' || rec.tag=='CREA') {
-            const pair = ['NAME','FNAM'].map(x => {
-              const sub = rec.find(x);
-              return sub ? sub.data.name : null;
-            });
-            if (pair[0] && pair[1])
-              names[pair[0]] = pair[1];
-          } else
-          if (rec.tag=='QUES') {
-            quests.push(rec);
+          } else {
+            dial = null;
+            if (rec.tag=='NPC_' || rec.tag=='CREA') {
+              const pair = ['NAME','FNAM'].map(x => {
+                const sub = rec.find(x);
+                return sub ? sub.data.name : null;
+              });
+              if (pair[0] && pair[1])
+                names[pair[0]] = pair[1];
+            } else
+            if (rec.tag=='QUES') {
+              quests.push(rec);
+            }
           }
         }
         for (const ques of quests) {
@@ -245,12 +247,12 @@ function read_es_file(file) {
             for (let i=0; i<n; ++i) {
               const inam = data[i].data.data;
               const info = infos[inam];
-              if (i==0 && info.dial) {
-                s.after(': ');
-                span(info.dial[0]+' ['+info.dial[1]+']');
-              }
-              $('<br>').appendTo(p);
               if (info) {
+                if (i==0 && info.dial) {
+                  s.after(': ');
+                  span(info.dial[0]+' ['+info.dial[1]+']');
+                }
+                $('<br>').appendTo(p);
                 span(info.acdt);
                 const name = names[info.acdt];
                 if (name) {
@@ -258,6 +260,8 @@ function read_es_file(file) {
                   span('('+name+')');
                 }
                 s.after(': ');
+              } else {
+                $('<br>').appendTo(p);
               }
               span(inam);
             }
