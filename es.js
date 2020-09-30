@@ -160,119 +160,104 @@ function read_es_file(file) {
 
     var tab_defs = [ // TODO: ensure lifetime
       ['Records',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          const select1 = $('<select>').appendTo(div);
-          const tags1 = new Set();
-          for (let i=1; i<recs.length; ++i) // skip TES3 at 0
-            tags1.add(recs[i].tag);
-          Array.from(tags1).sort().forEach(
-            x => $('<option>').text(x).appendTo(select1)
-          );
-          select1.on('change',function(){
-            console.log( recs.filter(x => x.tag==$(this).val()) );
-          });
-          tab.push(div);
-        }
-        return tab[2];
+        const div = $('<div>');
+        const select1 = $('<select>').appendTo(div);
+        const tags1 = new Set();
+        for (let i=1; i<recs.length; ++i) // skip TES3 at 0
+          tags1.add(recs[i].tag);
+        Array.from(tags1).sort().forEach(
+          x => $('<option>').text(x).appendTo(select1)
+        );
+        select1.on('change',function(){
+          console.log( recs.filter(x => x.tag==$(this).val()) );
+        });
+        return div
       }]
     ].concat(is_save ? [
       ['Pic',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data,true);
-          tab.push(div);
-        }
-        return tab[2];
+        const div = $('<div>');
+        draw(div,getrec('TES3','SCRS').data,true);
+        return div
       }],
       ['Map',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data,false);
-          tab.push(div);
-        }
-        return tab[2];
+        const div = $('<div>');
+        draw(div,getrec('FMAP','MAPD').data,false);
+        return div
       }],
       ['Journal',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          const jour = getrec('JOUR','NAME').data.journal;
-          div.html('<P>'+jour[0].replace(
-            /@([^#]*)#/g, '<span class="jourlink">$1</span>'
-          ));
-          div.children().each((i,li) => { div.prepend(li); });
-          tab.push(div);
-        }
-        return tab[2];
+        const div = $('<div>');
+        const jour = getrec('JOUR','NAME').data.journal;
+        div.html('<P>'+jour[0].replace(
+          /@([^#]*)#/g, '<span class="jourlink">$1</span>'
+        ));
+        div.children().each((i,li) => { div.prepend(li); });
+        return div
       }],
       ['Quests',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          const quests = [ ];
-          const infos = { };
-          const names = { };
-          let dial = null;
-          for (const rec of recs) {
-            if (rec.tag=='DIAL') {
-              const pair = ['NAME','XIDX'].map(x => {
-                const sub = rec.find(x);
-                return sub ? sub.data.name : null;
-              });
-              if (pair[0] && pair[1])
-                dial = pair;
-            } else
-            if (rec.tag=='INFO') {
-              const pair = ['INAM','ACDT'].map(x => {
-                const sub = rec.find(x);
-                return sub ? sub.data.name : null;
-              });
-              if (pair[0] && pair[1])
-                infos[pair[0]] = { acdt: pair[1], dial: dial };
-            } else
-            if (rec.tag=='NPC_' || rec.tag=='CREA') {
-              const pair = ['NAME','FNAM'].map(x => {
-                const sub = rec.find(x);
-                return sub ? sub.data.name : null;
-              });
-              if (pair[0] && pair[1])
-                names[pair[0]] = pair[1];
-            } else
-            if (rec.tag=='QUES') {
-              quests.push(rec);
-            }
+        const div = $('<div>');
+        const quests = [ ];
+        const infos = { };
+        const names = { };
+        let dial = null;
+        for (const rec of recs) {
+          if (rec.tag=='DIAL') {
+            const pair = ['NAME','XIDX'].map(x => {
+              const sub = rec.find(x);
+              return sub ? sub.data.name : null;
+            });
+            if (pair[0] && pair[1])
+              dial = pair;
+          } else
+          if (rec.tag=='INFO') {
+            const pair = ['INAM','ACDT'].map(x => {
+              const sub = rec.find(x);
+              return sub ? sub.data.name : null;
+            });
+            if (pair[0] && pair[1])
+              infos[pair[0]] = { acdt: pair[1], dial: dial };
+          } else
+          if (rec.tag=='NPC_' || rec.tag=='CREA') {
+            const pair = ['NAME','FNAM'].map(x => {
+              const sub = rec.find(x);
+              return sub ? sub.data.name : null;
+            });
+            if (pair[0] && pair[1])
+              names[pair[0]] = pair[1];
+          } else
+          if (rec.tag=='QUES') {
+            quests.push(rec);
           }
-          for (const ques of quests) {
-            const data = ques.children.filter(x => x.tag=='DATA');
-            const n = data.length;
-            if (n) {
-              const p = $('<p>').appendTo(div);
-              let s;
-              const span = text => s = $('<span>').text(text).appendTo(p);
-              span(ques.find('NAME').data.name).addClass('ques');
-              for (let i=0; i<n; ++i) {
-                const inam = data[i].data.data;
-                const info = infos[inam];
-                if (i==0 && info.dial) {
-                  s.after(': ');
-                  span(info.dial[0]+' ['+info.dial[1]+']');
-                }
-                $('<br>').appendTo(p);
-                if (info) {
-                  span(info.acdt);
-                  const name = names[info.acdt];
-                  if (name) {
-                    s.after(' ');
-                    span('('+name+')');
-                  }
-                  s.after(': ');
-                }
-                span(inam);
-              }
-            }
-          }
-          tab.push(div);
         }
-        return tab[2];
+        for (const ques of quests) {
+          const data = ques.children.filter(x => x.tag=='DATA');
+          const n = data.length;
+          if (n) {
+            const p = $('<p>').appendTo(div);
+            let s;
+            const span = text => s = $('<span>').text(text).appendTo(p);
+            span(ques.find('NAME').data.name).addClass('ques');
+            for (let i=0; i<n; ++i) {
+              const inam = data[i].data.data;
+              const info = infos[inam];
+              if (i==0 && info.dial) {
+                s.after(': ');
+                span(info.dial[0]+' ['+info.dial[1]+']');
+              }
+              $('<br>').appendTo(p);
+              if (info) {
+                span(info.acdt);
+                const name = names[info.acdt];
+                if (name) {
+                  s.after(' ');
+                  span('('+name+')');
+                }
+                s.after(': ');
+              }
+              span(inam);
+            }
+          }
+        }
+        return div
       }]
     ] : [
     ]);
@@ -283,7 +268,9 @@ function read_es_file(file) {
         if (!$(this).hasClass('active')) {
           $('#tabs > button.active').removeClass('active');
           $(this).addClass('active');
-          tab_div.empty().append(tab[1](tab));
+          if (tab.length < 3)
+            tab.push(tab[1](tab));
+          tab_div.empty().append(tab[2]);
         }
       });
     }
