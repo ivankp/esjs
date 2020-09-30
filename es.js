@@ -97,20 +97,28 @@ function add_text(elem,text,d=', ') {
   }
 }
 
-function draw(div,data,ch) {
+function draw(div,data,pic) {
   data = new Uint8Array(data);
-  const len = data.length;
-  const w = Math.sqrt(len/ch);
+  const w = Math.sqrt(data.length/(pic ? 4 : 3));
 
   const ctx = $('<canvas>').appendTo(div)[0].getContext('2d');
   ctx.canvas.height = ctx.canvas.width = w;
   const img = ctx.createImageData(w,w);
-  for (let i=0, j=0; j<len; i+=4, j+=ch) {
-    img.data[i  ] = data[j  ];
-    img.data[i+1] = data[j+1];
-    img.data[i+2] = data[j+2];
-    img.data[i+3] = 255;
-  }
+  const len = img.data.length;
+  if (pic)
+    for (let i=0; i<len; i+=4) {
+      img.data[i  ] = data[i+2]*2;
+      img.data[i+1] = data[i+1]*2;
+      img.data[i+2] = data[i  ]*2;
+      img.data[i+3] = 255;
+    }
+  else
+    for (let i=0, j=0; i<len; i+=4, j+=3) {
+      img.data[i  ] = data[j  ];
+      img.data[i+1] = data[j+1];
+      img.data[i+2] = data[j+2];
+      img.data[i+3] = 255;
+    }
   ctx.putImageData(img,0,0);
 }
 
@@ -172,7 +180,7 @@ function read_es_file(file) {
       ['Pic',function(tab){
         if (tab.length < 3) {
           const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data,4);
+          draw(div,getrec('TES3','SCRS').data,true);
           tab.push(div);
         }
         return tab[2];
@@ -180,7 +188,7 @@ function read_es_file(file) {
       ['Map',function(tab){
         if (tab.length < 3) {
           const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data,3);
+          draw(div,getrec('FMAP','MAPD').data,false);
           tab.push(div);
         }
         return tab[2];
