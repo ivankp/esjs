@@ -14,6 +14,16 @@ const format = {
   ],
   "TES3DATA": [ ['FileSize', (view,a) => view.getBigUint64(a,true)] ],
   "TES3MAST": [ ['name', str] ],
+  "JOURNAME": [
+    ['journal', (view,a,n) => {
+      const ints = new Int8Array(view.buffer,a,n);
+      const end = ints.indexOf(0);
+      return [
+        utf8decoder.decode(ints.slice(0,end)),
+        ints.slice(end).buffer // what is this?
+      ];
+    }]
+  ],
   "ALCHNAME": [ ['id', str] ],
   "ALCHMODL": [ ['model', str] ],
   "ALCHTEXT": [ ['icon', str] ],
@@ -27,6 +37,12 @@ const format = {
     ['effectID', (view,a) => view.getUint16(a,true)],
     ['_2', (view,a,n) => view.buffer.slice(a+2,a+n)] // unknown
   ],
+  "QUESNAME": [ ['name', str] ],
+  "QUESDATA": [ ['data', str] ],
+  "INFOINAM": [ ['name', str] ],
+  "INFOACDT": [ ['name', str] ],
+  "NAME": [ ['name', str] ],
+  "FNAM": [ ['name', str] ],
 };
 
 const utf8decoder = new TextDecoder("utf-8");
@@ -133,23 +149,7 @@ function read_es_file(file) {
       add_text(p2,GMDT.CharacterName+'; '+GMDT.CellName,'; ');
     }
 
-    var tab_defs = [
-      ['Pic',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data,4);
-          tab.push(div);
-        }
-        return tab[2];
-      }],
-      ['Map',function(tab){
-        if (tab.length < 3) {
-          const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data,3);
-          tab.push(div);
-        }
-        return tab[2];
-      }],
+    var tab_defs = [ // TODO: ensure lifetime
       ['Records',function(tab){
         if (tab.length < 3) {
           const div = $('<div>');
@@ -167,11 +167,94 @@ function read_es_file(file) {
         }
         return tab[2];
       }]
-    ];
+    ].concat(is_save ? [
+      ['Pic',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          draw(div,getrec('TES3','SCRS').data,4);
+          tab.push(div);
+        }
+        return tab[2];
+      }],
+      ['Map',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          draw(div,getrec('FMAP','MAPD').data,3);
+          tab.push(div);
+        }
+        return tab[2];
+      }],
+      ['Journal',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          const jour = getrec('JOUR','NAME').data.journal;
+          div.html('<P>'+jour[0].replace(
+            /@([^#]*)#/g, '<span class="jourlink">$1</span>'
+          ));
+          div.children().each((i,li) => { div.prepend(li); });
+          tab.push(div);
+        }
+        return tab[2];
+      }],
+      ['Quests',function(tab){
+        if (tab.length < 3) {
+          const div = $('<div>');
+          const quests = [ ];
+          const infos = { };
+          const names = { };
+          for (const rec of recs) {
+            if (rec.tag=='INFO') {
+              const pair = ['INAM','ACDT'].map(x => {
+                const sub = rec.find(x);
+                return sub ? sub.data.name : null;
+              });
+              if (pair[0] && pair[1])
+                infos[pair[0]] = pair[1];
+            } else
+            if (rec.tag=='NPC_' || rec.tag=='CREA') {
+              const pair = ['NAME','FNAM'].map(x => {
+                const sub = rec.find(x);
+                return sub ? sub.data.name : null;
+              });
+              if (pair[0] && pair[1])
+                names[pair[0]] = pair[1];
+            } else
+            if (rec.tag=='QUES') {
+              quests.push(rec);
+            }
+          }
+          for (const ques of quests) {
+            const data = ques.children.filter(x => x.tag=='DATA');
+            if (data.length) {
+              const p = $('<p>').appendTo(div);
+              $('<span class="ques">').text(ques.find('NAME').data.name)
+                .appendTo(p);
+              for (const sub of data) {
+                $('<br>').appendTo(p);
+                const inam = sub.data.data;
+                const acdt = infos[inam];
+                if (acdt) {
+                  let s = $('<span>').text(acdt).appendTo(p);
+                  const name = names[acdt];
+                  if (name) {
+                    s.after(' ');
+                    s = $('<span>').text('('+name+')').appendTo(p);
+                  }
+                  s.after(': ');
+                }
+                $('<span>').text(inam).appendTo(p);
+              }
+            }
+          }
+          tab.push(div);
+        }
+        return tab[2];
+      }]
+    ] : [
+    ]);
     const tabs_div = $('#tabs').empty();
     const tab_div = $('#tab').empty();
     for (const tab of tab_defs) {
-      if (!is_save && tab[0] in ['pic','map']) continue;
       $('<button>').appendTo(tabs).text(tab[0]).on('click',function(){
         if (!$(this).hasClass('active')) {
           $('#tabs > button.active').removeClass('active');

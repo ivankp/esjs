@@ -36,9 +36,9 @@ body { margin: 5px; }
   transition: 0.3s;
   font-size: 12px;
 }
-#tabs button:hover {
-  background-color: #ddd;
-}
-#tabs button.active {
-  background-color: #ccc;
-}
+#tabs button:hover { background-color: #ddd; }
+#tabs button.active { background-color: #ccc; }
+
+.jourlink { color: blue; }
+
+.ques { color: #CE5C00; }
