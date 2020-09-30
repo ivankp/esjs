@@ -1,4 +1,6 @@
 const format = {
+  "NAME": [ ['name', str] ],
+  "FNAM": [ ['name', str] ],
   "TES3HEDR": [
     ['version', (view,a) => view.getFloat32(a,true)],
     ['type', (view,a) => view.getUint32(a+4,true)],
@@ -27,7 +29,6 @@ const format = {
   "ALCHNAME": [ ['id', str] ],
   "ALCHMODL": [ ['model', str] ],
   "ALCHTEXT": [ ['icon', str] ],
-  "ALCHFNAM": [ ['name', str] ],
   "ALCHALDT": [
     ['weight', (view,a) => view.getFloat32(a,true)],
     ['value', (view,a) => view.getUint32(a+4,true)],
@@ -41,8 +42,8 @@ const format = {
   "QUESDATA": [ ['data', str] ],
   "INFOINAM": [ ['name', str] ],
   "INFOACDT": [ ['name', str] ],
-  "NAME": [ ['name', str] ],
-  "FNAM": [ ['name', str] ],
+  "DIALNAME": [ ['name', str] ],
+  "DIALXIDX": [ ['name', (view,a) => view.getUint8(a,true)] ],
 };
 
 const utf8decoder = new TextDecoder("utf-8");
@@ -202,14 +203,23 @@ function read_es_file(file) {
           const quests = [ ];
           const infos = { };
           const names = { };
+          let dial = null;
           for (const rec of recs) {
+            if (rec.tag=='DIAL') {
+              const pair = ['NAME','XIDX'].map(x => {
+                const sub = rec.find(x);
+                return sub ? sub.data.name : null;
+              });
+              if (pair[0] && pair[1])
+                dial = pair;
+            } else
             if (rec.tag=='INFO') {
               const pair = ['INAM','ACDT'].map(x => {
                 const sub = rec.find(x);
                 return sub ? sub.data.name : null;
               });
               if (pair[0] && pair[1])
-                infos[pair[0]] = pair[1];
+                infos[pair[0]] = { acdt: pair[1], dial: dial };
             } else
             if (rec.tag=='NPC_' || rec.tag=='CREA') {
               const pair = ['NAME','FNAM'].map(x => {
@@ -225,24 +235,30 @@ function read_es_file(file) {
           }
           for (const ques of quests) {
             const data = ques.children.filter(x => x.tag=='DATA');
-            if (data.length) {
+            const n = data.length;
+            if (n) {
               const p = $('<p>').appendTo(div);
-              $('<span class="ques">').text(ques.find('NAME').data.name)
-                .appendTo(p);
-              for (const sub of data) {
+              let s;
+              const span = text => s = $('<span>').text(text).appendTo(p);
+              span(ques.find('NAME').data.name).addClass('ques');
+              for (let i=0; i<n; ++i) {
+                const inam = data[i].data.data;
+                const info = infos[inam];
+                if (i==0 && info.dial) {
+                  s.after(': ');
+                  span(info.dial[0]+' ['+info.dial[1]+']');
+                }
                 $('<br>').appendTo(p);
-                const inam = sub.data.data;
-                const acdt = infos[inam];
-                if (acdt) {
-                  let s = $('<span>').text(acdt).appendTo(p);
-                  const name = names[acdt];
+                if (info) {
+                  span(info.acdt);
+                  const name = names[info.acdt];
                   if (name) {
                     s.after(' ');
-                    s = $('<span>').text('('+name+')').appendTo(p);
+                    span('('+name+')');
                   }
                   s.after(': ');
                 }
-                $('<span>').text(inam).appendTo(p);
+                span(inam);
               }
             }
           }
