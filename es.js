@@ -6,7 +6,6 @@ function av(view,offset) { // advance view
 
 const utf8decoder = new TextDecoder("utf-8");
 function str(view,a,n) {
-  while (n>0 && view.getUint8(a+n-1)==0) --n;
   return utf8decoder.decode(new Uint8Array(view.buffer,a,n));
 }
 
@@ -14,17 +13,20 @@ function get_ubyte  (view) { return av(view,1).getUint8  (0,true); }
 function get_ushort (view) { return av(view,2).getUint16 (0,true); }
 function get_ulong  (view) { return av(view,4).getUint32 (0,true); }
 function get_float  (view) { return av(view,4).getFloat32(0,true); }
+function get_u64    (view) { return av(view,8).getBigUint64(0,true); }
 function get_ubytes (view,n) {
   const v = av(view,n);
   return new Uint8Array(v.buffer,v.byteOffset,n);
 }
-function get_bstring(view) {
-  let n = get_ubyte(view);
+function get_string(view,n) {
   let arr = get_ubytes(view,n);
   while (arr[n-1]==0) --n;
   return utf8decoder.decode(arr.subarray(0,n));
 }
-function get_systemtime(view,a) {
+function get_bstring(view) {
+  return get_string(view,get_ubyte(view));
+}
+function get_systemtime(view) {
   return new Date(
     get_ushort(view), // year
     get_ushort(view), // month
@@ -38,83 +40,77 @@ function get_systemtime(view,a) {
 }
 
 const format3 = {
-  "NAME": [ ['name', str] ],
-  "FNAM": [ ['name', str] ],
+  "NAME": [ ['name', get_string] ],
+  "FNAM": [ ['name', get_string] ],
   "TES3HEDR": [
-    ['version', (view,a) => view.getFloat32(a,true)],
-    ['type', (view,a) => view.getUint32(a+4,true)],
-    ['author', (view,a) => str(view,a+8,32)],
-    ['description', (view,a) => str(view,a+40,256)],
-    ['numrecs', (view,a) => view.getUint32(a+296,true)]
+    ['version', get_float],
+    ['type', get_ulong],
+    ['author', view => get_string(view,32)],
+    ['description', view => get_string(view,256)],
+    ['numrecs', get_ulong]
   ],
   "TES3GMDT": [
-    ["_1", (view,a) => Array(6).map((x,i) => view.getFloat32(a+i*4,true))],
-    ["CellName", (view,a) => str(view,a+24,64)],
-    ["_3", (view,a) => view.getFloat32(a+88,true)],
-    ["CharacterName", (view,a) => str(view,a+92,32)]
+    ["_1", view => [...Array(6)].map(() => get_float(view))],
+    ["CellName", view => get_string(view,64)],
+    ["_3", get_float],
+    ["CharacterName", view => get_string(view,32)]
   ],
-  "TES3DATA": [ ['FileSize', (view,a) => view.getBigUint64(a,true)] ],
-  "TES3MAST": [ ['name', str] ],
+  "TES3DATA": [ ['FileSize', get_u64] ],
+  "TES3MAST": [ ['name', get_string] ],
+  "TES3SCRS": [ ['screenshot', get_ubytes] ],
+  "FMAPMAPD": [ ['map', get_ubytes] ],
   "JOURNAME": [
-    ['journal', (view,a,n) => {
-      const ints = new Int8Array(view.buffer,a,n);
-      const end = ints.indexOf(0);
+    ['journal', (view,n) => {
+      const arr = get_ubytes(view,n);
+      const end = arr.indexOf(0);
       return [
-        utf8decoder.decode(ints.slice(0,end)),
-        ints.slice(end).buffer // what is this?
+        utf8decoder.decode(arr.subarray(0,end)),
+        arr.subarray(end) // what is this?
       ];
     }]
   ],
-  "ALCHNAME": [ ['id', str] ],
-  "ALCHMODL": [ ['model', str] ],
-  "ALCHTEXT": [ ['icon', str] ],
+  "ALCHNAME": [ ['id', get_string] ],
+  "ALCHMODL": [ ['model', get_string] ],
+  "ALCHTEXT": [ ['icon', get_string] ],
   "ALCHALDT": [
-    ['weight', (view,a) => view.getFloat32(a,true)],
-    ['value', (view,a) => view.getUint32(a+4,true)],
-    ['autocalc', (view,a) => view.getUint32(a+8,true)]
+    ['weight', get_float],
+    ['value', get_ulong],
+    ['autocalc', get_ulong],
   ],
   "ALCHENAM": [
-    ['effectID', (view,a) => view.getUint16(a,true)],
-    ['_2', (view,a,n) => view.buffer.slice(a+2,a+n)] // unknown
+    ['effectID', get_ushort],
+    ['_2', (view,n) => get_ubytes(view,n-2)] // unknown
   ],
-  "QUESNAME": [ ['name', str] ],
-  "QUESDATA": [ ['data', str] ],
-  "INFOINAM": [ ['name', str] ],
-  "INFOACDT": [ ['name', str] ],
-  "DIALNAME": [ ['name', str] ],
-  "DIALXIDX": [ ['name', (view,a) => view.getUint8(a,true)] ],
+  "QUESDATA": [ ['data', get_string] ],
+  "INFOINAM": [ ['name', get_string] ],
+  "INFOACDT": [ ['name', get_string] ],
+  "DIALXIDX": [ ['name', get_ulong ] ],
 };
 
-function Record(view,a,parent=null) {
-  const a0 = a;
-
-  this.tag = str(view,a,4); a+=4;
-  this.size = view.getUint32(a,true); a+=4;
+function Record(view,parent=null) {
+  this.tag = get_string(view,4);
+  this.size = get_ulong(view);
 
   this.parent = parent;
   if (!parent) {
-    this.flags = new Uint8Array(view.buffer,a,8); a+=8;
+    this.flags = get_ubytes(view,8);
 
     this.children = [ ];
-    const end = a + this.size;
-    while (a < end) {
-      const x = new Record(view,a,this);
-      this.children.push(x);
-      a += x.bytes;
-    }
+    const end = view[0].byteOffset + this.size;
+    while (view[0].byteOffset < end)
+      this.children.push(new Record(view,this));
   } else {
     const fmt = format3[parent.tag+this.tag] || format3[this.tag];
     if (fmt) {
       this.data = { };
       for (const x of fmt)
-        this.data[x[0]] = x[1](view,a,this.size);
+        this.data[x[0]] = x[1](view,this.size);
     } else {
-      this.data = view.buffer.slice(a,a+this.size);
+      // this.data = get_string(view,this.size);
+      const v = av(view,this.size);
+      this.data = new DataView(v.buffer,v.byteOffset,this.size)
     }
-    a += this.size;
   }
-
-  this.bytes = a - a0;
 }
 Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag == tag);
@@ -131,7 +127,6 @@ function add_text(elem,text,d=', ') {
 }
 
 function draw(div,data,pic) {
-  data = new Uint8Array(data);
   const w = Math.sqrt(data.length/(pic ? 4 : 3));
 
   const ctx = $('<canvas>').appendTo(div)[0].getContext('2d');
@@ -159,21 +154,20 @@ function read_es_file(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const data_view = new DataView(e.target.result);
-    const view = new DataView(e.target.result);
-    const size = view.byteLength;
+    const size = data_view.byteLength;
 
     const info = $('#file_info').empty();
     const p1 = $('<p class="tt">').appendTo(info);
     add_text(p1,size+' bytes');
 
-    if (str(view,0,4)=="TES3") {
+    if (str(data_view,0,4)=="TES3") {
+
+      const view = [data_view];
 
       const recs = [ ];
-      for (let a=0; a<size; ) {
-        const x = new Record(view,a);
-        recs.push(x);
-        a += x.bytes;
-      }
+      while (view[0].byteOffset < size)
+        recs.push(new Record(view));
+
       function getrec(a,b) { return recs.find(x => x.tag==a).find(b); }
       add_text(p1,recs.length-1+' records');
 
@@ -211,12 +205,12 @@ function read_es_file(file) {
       ].concat(is_save ? [
         ['Pic',function(tab){
           const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data,true);
+          draw(div,getrec('TES3','SCRS').data.screenshot,true);
           return div;
         }],
         ['Map',function(tab){
           const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data,false);
+          draw(div,getrec('FMAP','MAPD').data.map,false);
           return div;
         }],
         ['Journal',function(tab){
@@ -315,9 +309,9 @@ function read_es_file(file) {
       }
       $('#main').show();
 
-    } else if (str(view,0,4)=="TES4") {
+    } else if (str(data_view,0,4)=="TES4") {
 
-      const is_save = str(view,0,12)=='TES4SAVEGAME';
+      const is_save = str(data_view,0,12)=='TES4SAVEGAME';
 
       var tab_defs = [
       ].concat(is_save ? [
