@@ -4,6 +4,7 @@
 }
 
 body { margin: 5px; }
+pre { margin: 0; }
 
 .tt { font-family: monospace; }
 .mc { font-family: MagicCards; }
@@ -42,3 +43,13 @@ body { margin: 5px; }
 .jourlink { color: blue; }
 
 .ques { color: #CE5C00; }
+
+div.row > div.inline {
+  display: inline-block;
+  vertical-align: top;
+}
+div.row > div.inline:not(:last-child) {
+  margin-right: 2em;
+}
+
+p.narrow { margin: 0; }
