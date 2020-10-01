@@ -3,6 +3,7 @@ function av(view,offset) { // advance view
   view[0] = new DataView(prev.buffer,prev.byteOffset+offset);
   return prev;
 }
+// TODO: try [view,a]
 
 const utf8decoder = new TextDecoder("utf-8");
 function str(view,a,n) {
@@ -103,8 +104,13 @@ function Record(view,parent=null) {
     const fmt = format3[parent.tag+this.tag] || format3[this.tag];
     if (fmt) {
       this.data = { };
+      const a = view[0].byteOffset;
       for (const x of fmt)
         this.data[x[0]] = x[1](view,this.size);
+      const read = view[0].byteOffset-a;
+      if (read != this.size)
+        throw 'size of a '+parent.tag+'.'+this.tag+' ('+this.size+')'
+          + ' not equal to size read ('+read+')';
     } else {
       // this.data = get_string(view,this.size);
       const v = av(view,this.size);
