@@ -1,41 +1,39 @@
+function av(view,offset) { // advance view
+  const prev = view[0];
+  view[0] = new DataView(prev.buffer,prev.byteOffset+offset);
+  return prev;
+}
+
 const utf8decoder = new TextDecoder("utf-8");
 function str(view,a,n) {
   while (n>0 && view.getUint8(a+n-1)==0) --n;
   return utf8decoder.decode(new Uint8Array(view.buffer,a,n));
 }
-function get_ulong(view,a) {
-  const x = view.getUint32(a[0],true); a[0]+=4; return x;
-};
-function get_ushort(view,a) {
-  const x = view.getUint16(a[0],true); a[0]+=2; return x;
-};
-function get_ubyte(view,a) {
-  const x = view.getUint8(a[0],true); a[0]+=1; return x;
-};
-function get_float(view,a) {
-  const x = view.getFloat32(a[0],true); a[0]+=4; return x;
-};
-function get_bstring(view,a) {
-  const len = get_ubyte(view,a);
-  const x = str(view,a[0],len); a[0]+=len; return x;
-};
-function get_zstring(view,a) {
-  const ints = new Int8Array(view.buffer,a[0]);
-  const len = ints.indexOf(0);
-  const x = utf8decoder.decode(ints.slice(0,len));
-  a[0] += len;
-  return x;
-};
+
+function get_ubyte  (view) { return av(view,1).getUint8  (0,true); }
+function get_ushort (view) { return av(view,2).getUint16 (0,true); }
+function get_ulong  (view) { return av(view,4).getUint32 (0,true); }
+function get_float  (view) { return av(view,4).getFloat32(0,true); }
+function get_ubytes (view,n) {
+  const v = av(view,n);
+  return new Uint8Array(v.buffer,v.byteOffset,n);
+}
+function get_bstring(view) {
+  let n = get_ubyte(view);
+  let arr = get_ubytes(view,n);
+  while (arr[n-1]==0) --n;
+  return utf8decoder.decode(arr.subarray(0,n));
+}
 function get_systemtime(view,a) {
   return new Date(
-    get_ushort(view,a), // year
-    get_ushort(view,a), // month
- // get_ushort(view,a), // dayofweek
-    get_ushort(view,(a[0]+=2,a)), // day
-    get_ushort(view,a), // hour
-    get_ushort(view,a), // minutes
-    get_ushort(view,a), // seconds
-    get_ushort(view,a)  // milliseconds
+    get_ushort(view), // year
+    get_ushort(view), // month
+ // get_ushort(view), // dayofweek
+    get_ushort((av(view,2),view)), // day
+    get_ushort(view), // hour
+    get_ushort(view), // minutes
+    get_ushort(view), // seconds
+    get_ushort(view)  // milliseconds
   );
 }
 
@@ -160,6 +158,7 @@ function draw(div,data,pic) {
 function read_es_file(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
+    const data_view = new DataView(e.target.result);
     const view = new DataView(e.target.result);
     const size = view.byteLength;
 
@@ -181,8 +180,6 @@ function read_es_file(file) {
       const HEDR = getrec('TES3','HEDR').data;
       const p2 = $('<p class="mc">').appendTo(info);
       add_text(p2,HEDR.description,'; ');
-
-      // console.log( recs[0] );
 
       const is_save = HEDR.type==32;
       if (is_save) {
@@ -326,33 +323,33 @@ function read_es_file(file) {
       ].concat(is_save ? [
         ['Info',function(tab){
           const div = $('<div>');
-          let row = $('<div class="row">').appendTo(div);
-          const a = [12];
+          const view = [data_view];
+          av(view,12);
           const header = {
-            majorVersion: get_ubyte(view,a),
-            minorVersion: get_ubyte(view,a),
-            exeTime: get_systemtime(view,a),
-            headerVersion: get_ulong(view,a),
-            saveHeaderSize: get_ulong(view,a),
-            saveNum: get_ulong(view,a),
-            pcName: get_bstring(view,a),
-            pcLevel: get_ushort(view,a),
-            pcLocation: get_bstring(view,a),
-            gameDays: get_float(view,a),
-            gameTicks: get_ulong(view,a),
-            gameTime: get_systemtime(view,a),
+            majorVersion: get_ubyte(view),
+            minorVersion: get_ubyte(view),
+            exeTime: get_systemtime(view),
+            headerVersion: get_ulong(view),
+            saveHeaderSize: get_ulong(view),
+            saveNum: get_ulong(view),
+            pcName: get_bstring(view),
+            pcLevel: get_ushort(view),
+            pcLocation: get_bstring(view),
+            gameDays: get_float(view),
+            gameTicks: get_ulong(view),
+            gameTime: get_systemtime(view),
             screenshot: {
-              size: get_ulong(view,a),
-              width: get_ulong(view,a),
-              height: get_ulong(view,a),
+              size: get_ulong(view),
+              width: get_ulong(view),
+              height: get_ulong(view),
             }
           };
+          let row = $('<div class="row">').appendTo(div);
           $('<div class="inline">').append(
             $('<pre>').text(JSON.stringify(header,null,2))
           ).appendTo(row);
           {
-            const data = new Uint8Array(
-              view.buffer, a[0], a[0]+=header.screenshot.size-8);
+            const data = get_ubytes(view,header.screenshot.size-8);
             const ctx = $('<canvas>').appendTo(
               $('<div class="inline">').appendTo(row)
             )[0].getContext('2d');
@@ -370,10 +367,10 @@ function read_es_file(file) {
           }
           row = $('<div class="row">').appendTo(div);
 
-          const pluginsNum = get_ubyte(view,a);
+          const pluginsNum = get_ubyte(view);
           $('<h2>').text('Plugins ['+pluginsNum+']:').appendTo(row);
           for (let i=0; i<pluginsNum; ++i)
-            $('<p class="narrow">').text(get_bstring(view,a)).appendTo(row);
+            $('<p class="narrow">').text(get_bstring(view)).appendTo(row);
 
           return div;
         }]
