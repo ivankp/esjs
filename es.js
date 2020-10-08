@@ -13,6 +13,7 @@ function str(view,a,n) {
 function get_ubyte  (view) { return av(view,1).getUint8  (0,true); }
 function get_ushort (view) { return av(view,2).getUint16 (0,true); }
 function get_ulong  (view) { return av(view,4).getUint32 (0,true); }
+function get_long   (view) { return av(view,4).getInt32  (0,true); }
 function get_float  (view) { return av(view,4).getFloat32(0,true); }
 function get_u64    (view) { return av(view,8).getBigUint64(0,true); }
 function get_ubytes (view,n) {
@@ -40,9 +41,12 @@ function get_systemtime(view) {
   );
 }
 
+var recs = [ ];
+
 const format3 = {
   "NAME": [ ['name', get_string] ],
   "FNAM": [ ['name', get_string] ],
+  "MODL": [ ['model', get_string] ],
   "TES3HEDR": [
     ['version', get_float],
     ['type', get_ulong],
@@ -70,8 +74,6 @@ const format3 = {
       ];
     }]
   ],
-  "ALCHNAME": [ ['id', get_string] ],
-  "ALCHMODL": [ ['model', get_string] ],
   "ALCHTEXT": [ ['icon', get_string] ],
   "ALCHALDT": [
     ['weight', get_float],
@@ -86,6 +88,64 @@ const format3 = {
   "INFOINAM": [ ['name', get_string] ],
   "INFOACDT": [ ['name', get_string] ],
   "DIALXIDX": [ ['name', get_ulong ] ],
+  "GLOBFLTV": [ ['val', (view,n,p) => {
+      const t = p.find('FNAM').data.name;
+      if (t=='s') return (get_ushort(view),get_ushort(view));
+      if (t=='l') return get_ulong(view);
+      if (t=='f') return get_float(view);
+    }] ],
+  "CLASDESC": [ ['desc', get_string] ],
+  "CLOTITEX": [ ['texture', get_string] ],
+  "CLOTENAM": [ ['enchant', get_string] ],
+  "CLOTBNAM": [ ['mesh', get_string] ],
+  "CREACNAM": [ ['class', get_string] ],
+  "CREASCRI": [ ['script', get_string] ],
+  "CREANPCS": [ ['spell', get_string] ],
+  "CREANPCO": [
+    ['count', get_long],
+    ['item', (view,n) => get_string(view,n-4)]
+  ],
+  "NPC_CNAM": [ ['class', get_string] ],
+  "NPC_SCRI": [ ['script', get_string] ],
+  "NPC_ANAM": [ ['faction', get_string] ],
+  "NPC_NPCS": [ ['spell', get_string] ],
+  "NPC_RNAM": [ ['race', get_string] ],
+  "NPC_BNAM": [ ['head', get_string] ],
+  "NPC_KNAM": [ ['hair', get_string] ],
+  "NPC_NPCO": [
+    ['count', get_long],
+    ['item', (view,n) => get_string(view,n-4)]
+  ],
+  "CNTCNPCO": [
+    ['count', get_long],
+    ['item', (view,n) => get_string(view,n-4)]
+  ],
+  "CONTNPCO": [
+    ['count', get_long],
+    ['item', (view,n) => get_string(view,n-4)]
+  ],
+  "CONTSCRI": [ ['script', get_string] ],
+  "CELLSCRI": [ ['script', get_string] ],
+  "CELLCNAM": [ ['owner', get_string] ],
+  "BOOKITEX": [ ['texture', get_string] ],
+  "BOOKTEXT": [ ['text', get_string] ],
+  "BOOKENAM": [ ['enchant', get_string] ],
+};
+
+const recref3 = {
+  "NPC_CNAM_class": [['CLAS','NAME','name']],
+  "NPC_NPCS_spell": [['SPEL','NAME','name']],
+  "NPC_NPCO_item": [
+    ['ALCH','NAME','name'],
+    ['CLOT','NAME','name'],
+    ['ARMO','NAME','name'],
+    ['WEAP','NAME','name'],
+    ['BOOK','NAME','name'],
+  ],
+  "CLOTENAM_enchant": [['ENCH','NAME','name']],
+  "ARMOENAM_enchant": [['ENCH','NAME','name']],
+  "WEAPENAM_enchant": [['ENCH','NAME','name']],
+  "BOOKENAM_enchant": [['ENCH','NAME','name']],
 };
 
 function Record(view,parent=null) {
@@ -106,7 +166,7 @@ function Record(view,parent=null) {
       this.data = { };
       const a = view[0].byteOffset;
       for (const x of fmt)
-        this.data[x[0]] = x[1](view,this.size);
+        this.data[x[0]] = x[1](view,this.size,parent);
       const read = view[0].byteOffset-a;
       if (read != this.size)
         throw 'size of a '+parent.tag+'.'+this.tag+' ('+this.size+')'
@@ -120,6 +180,59 @@ function Record(view,parent=null) {
 }
 Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag == tag);
+}
+
+function record_table(rec) {
+  const table = $('<table class="rec_data">');
+  for (const sub of rec.children) {
+    const tr = $('<tr>').appendTo(table);
+    $('<td>').text(sub.tag).appendTo(tr);
+    if (sub.data.constructor === DataView) {
+      new Uint8Array(
+        sub.data.buffer,
+        sub.data.byteOffset,
+        sub.data.byteLength
+      ).reduce( (td,c) => td.append($('<span>').text(
+          (31 < c && c < 127)
+          ? String.fromCharCode(c)
+          : c.toString(16).padStart(2,'0')
+        )), $('<td class="raw">').appendTo(tr)
+      )
+    } else {
+      for (const [key,val] of Object.entries(sub.data)) {
+        $('<td>').text(key).appendTo(tr);
+        const td = $('<td class="val">').text(val).appendTo(tr);
+        const tag = rec.tag + sub.tag +'_'+ key;
+        const refs = recref3[tag];
+        if (refs) {
+          td.addClass('click').on('click',function(){
+            const id = tag + val.replace(/\W/g,'_');
+            let subtab = $('#'+id);
+            if (subtab.length) {
+              subtab.remove();
+              $(this).removeClass('bold');
+            } else {
+              const subrec = recs.find(
+                x => refs.some( ref =>
+                  x.tag==ref[0] && x.find(ref[1]).data[ref[2]] === val
+                )
+              );
+              if (subrec) {
+                table.after(subtab = record_table(subrec).prop('id',id));
+                $(this).addClass('bold');
+                $([document.documentElement, document.body]).animate({
+                  scrollTop: subtab.offset().top-5
+                }, 1000);
+              } else {
+                td.removeClass('click').off('click');
+              }
+            }
+          });
+        }
+      }
+    }
+  }
+  return table;
 }
 
 function add_text(elem,text,d=', ') {
@@ -170,7 +283,7 @@ function read_es_file(file) {
 
       const view = [data_view];
 
-      const recs = [ ];
+      recs = [ ];
       while (view[0].byteOffset < size)
         recs.push(new Record(view));
 
@@ -203,7 +316,22 @@ function read_es_file(file) {
             const val = $(this).val();
             subdiv.empty();
             if (val) for (const rec of recs.filter(x => x.tag==val)) {
-              $('<div>').text(rec.tag).appendTo(subdiv);
+              // console.log(rec);
+              let lbl = null;
+              const name = [ rec.find('NAME'), rec.find('FNAM') ];
+              if (name[0]) lbl = name[0].data.name;
+              if (name[1]) lbl += ' ('+name[1].data.name+')';
+              if (!lbl) lbl = rec.tag;
+              $('<div>').append( $('<div class="rec_lbl">').text(lbl)
+              .on('click',function(){
+                const next = $(this).nextAll();
+                if (next.length) {
+                  next.remove();
+                  $(this).removeClass('bold');
+                } else {
+                  $(this).addClass('bold').after(record_table(rec));
+                }
+              })).appendTo(subdiv);
             }
           });
           return div;
@@ -399,9 +527,8 @@ function read_es_file(file) {
 }
 
 $(() => {
-  $('#file_form').submit(function(e){
-    e.preventDefault();
-    const files = $('#file_name')[0].files;
+  $('#file_name').on('change',function(e){
+    const files = this.files;
     if (files && files.length==1) {
       read_es_file(files[0]);
     } else alert('Invalid input file');

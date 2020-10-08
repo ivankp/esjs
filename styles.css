@@ -8,6 +8,8 @@ pre { margin: 0; }
 
 .tt { font-family: monospace; }
 .mc { font-family: MagicCards; }
+.bold { font-weight: bold; }
+.click { cursor: pointer; }
 
 #img > * {
   margin: 1px;
@@ -53,3 +55,26 @@ div.row > div.inline:not(:last-child) {
 }
 
 p.narrow { margin: 0; }
+
+.rec_lbl {
+  display: inline-block;
+  cursor: pointer;
+}
+.rec_lbl:hover {
+  background-color: orange;
+}
+.rec_data {
+  margin: 1px 1px 5px 1px;
+  border: 1px solid #8F5902;
+}
+.rec_data > tr:hover {
+  background-color: #FCE94F;
+}
+.rec_data .raw {
+  font-family: monospace;
+}
+.rec_data .raw span:not(:last-child) {
+  margin-right: 0.5ch;
+  float: left;
+  width: 2ch;
+}
