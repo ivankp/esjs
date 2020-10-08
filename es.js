@@ -88,7 +88,7 @@ const format3 = {
   "INFOINAM": [ ['name', get_string] ],
   "INFOACDT": [ ['name', get_string] ],
   "DIALXIDX": [ ['name', get_ulong ] ],
-  "GLOBFLTV": [ ['val', (view,n,p) => {
+  "GLOBFLTV": [ ['val', (view,n,p) => { // TODO: make sure this is correct
       const t = p.find('FNAM').data.name;
       if (t=='s') return (get_ushort(view),get_ushort(view));
       if (t=='l') return get_ulong(view);
@@ -130,6 +130,10 @@ const format3 = {
   "BOOKITEX": [ ['texture', get_string] ],
   "BOOKTEXT": [ ['text', get_string] ],
   "BOOKENAM": [ ['enchant', get_string] ],
+  "STLNONAM": [ ['owner', get_string] ],
+  "PCDTDNAM": [ ['topic', get_string] ],
+  "KLSTKNAM": [ ['name', get_string] ],
+  "ARMOENAM": [ ['enchant', get_string] ],
 };
 
 const recref3 = {
