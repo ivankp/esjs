@@ -70,6 +70,12 @@ p.narrow { margin: 0; }
 .rec_data > tr:hover {
   background-color: #FCE94F;
 }
+.rec_data > tr > td:first-child {
+  font-family: monospace;
+}
+.rec_data > tr:first-child > td {
+  text-decoration: underline;
+}
 .rec_data .raw {
   font-family: monospace;
 }
@@ -77,4 +83,17 @@ p.narrow { margin: 0; }
   margin-right: 0.5ch;
   float: left;
   width: 2ch;
+}
+span.ref, span.edit, span.editY, span.editN {
+  margin-left: 1em;
+  color: blue;
+  font-weight: bold;
+}
+span.ref::after { content: "⮷"; }
+span.edit::after { content: "edit"; }
+span.editY::after { content: "save"; }
+span.editN::after { content: "cancel"; }
+.rec_data textarea {
+  font-family: inherit;
+  font-size: inherit;
 }

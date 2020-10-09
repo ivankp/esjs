@@ -134,6 +134,10 @@ const format3 = {
   "PCDTDNAM": [ ['topic', get_string] ],
   "KLSTKNAM": [ ['name', get_string] ],
   "ARMOENAM": [ ['enchant', get_string] ],
+  "WEAPENAM": [ ['enchant', get_string] ],
+  "WEAPITEX": [ ['texture', get_string] ],
+  "ARMOITEX": [ ['texture', get_string] ],
+  "ARMOBNAM": [ ['body', get_string] ],
 };
 
 const recref3 = {
@@ -188,10 +192,12 @@ Record.prototype.find = function(tag) {
 
 function record_table(rec) {
   const table = $('<table class="rec_data">');
+  table.append($('<tr>').append($('<td>').text(rec.tag)));
   for (const sub of rec.children) {
     const tr = $('<tr>').appendTo(table);
     $('<td>').text(sub.tag).appendTo(tr);
     if (sub.data.constructor === DataView) {
+      $('<td>').appendTo(tr);
       new Uint8Array(
         sub.data.buffer,
         sub.data.byteOffset,
@@ -205,16 +211,18 @@ function record_table(rec) {
     } else {
       for (const [key,val] of Object.entries(sub.data)) {
         $('<td>').text(key).appendTo(tr);
-        const td = $('<td class="val">').text(val).appendTo(tr);
+        const td = $('<td>').appendTo(tr);
+        const val_span = $('<span class="val">').text(val).appendTo(td);
+        edit_record_value(val_span);
         const tag = rec.tag + sub.tag +'_'+ key;
         const refs = recref3[tag];
         if (refs) {
-          td.addClass('click').on('click',function(){
+          $('<span class="ref click">').on('click',function(e){
             const id = tag + val.replace(/\W/g,'_');
             let subtab = $('#'+id);
             if (subtab.length) {
               subtab.remove();
-              $(this).removeClass('bold');
+              td.removeClass('bold');
             } else {
               const subrec = recs.find(
                 x => refs.some( ref =>
@@ -223,20 +231,42 @@ function record_table(rec) {
               );
               if (subrec) {
                 table.after(subtab = record_table(subrec).prop('id',id));
-                $(this).addClass('bold');
+                td.addClass('bold');
                 $([document.documentElement, document.body]).animate({
                   scrollTop: subtab.offset().top-5
                 }, 1000);
               } else {
-                td.removeClass('click').off('click');
+                this.remove();
               }
             }
-          });
+          }).appendTo(td);
         }
       }
     }
   }
   return table;
+}
+
+function edit_record_value(val_span) {
+  const edit = $('<span class="edit click">').on('click',function(e){
+    edit.hide();
+    const ta = $('<textarea>').val(val_span.text());
+    val_span.hide().after(ta);
+    const y = $('<span class="editY click">').on('click',function(e){
+      val_span.text(ta.val()); // TODO: save changes
+      done();
+    });
+    edit.after(y);
+    const n = $('<span class="editN click">').on('click',function(e){
+      done();
+    });
+    edit.after(n);
+    function done() {
+      for (const x of [ta,y,n]) x.remove();
+      for (const x of [val_span,edit]) x.show();
+    }
+  });
+  val_span.after(edit);
 }
 
 function add_text(elem,text,d=', ') {
