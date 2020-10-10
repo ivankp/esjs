@@ -11,6 +11,7 @@ function str(view,a,n) {
 }
 
 function get_ubyte  (view) { return av(view,1).getUint8  (0,true); }
+function get_byte   (view) { return av(view,1).getInt8   (0,true); }
 function get_ushort (view) { return av(view,2).getUint16 (0,true); }
 function get_ulong  (view) { return av(view,4).getUint32 (0,true); }
 function get_long   (view) { return av(view,4).getInt32  (0,true); }
@@ -81,8 +82,45 @@ const format3 = {
     ['autocalc', get_ulong],
   ],
   "ALCHENAM": [
-    ['effectID', get_ushort],
-    ['_2', (view,n) => get_ubytes(view,n-2)] // unknown
+    ['effect', get_ushort],
+    ['skill', get_ubyte],
+    ['attr', get_ubyte],
+    ['range', get_ulong],
+    ['area', get_ulong],
+    ['duration', get_ulong],
+    ['min', get_ulong],
+    ['max', get_ulong],
+  ],
+  "ENCHENDT": [
+    ['type', get_ulong],
+    ['cost', get_ulong],
+    ['charge', get_ulong],
+    ['autocalc', get_ulong],
+  ],
+  "ENCHENAM": [
+    ['effect', get_ushort],
+    ['skill', get_ubyte],
+    ['attr', get_ubyte],
+    ['range', get_ulong],
+    ['area', get_ulong],
+    ['duration', get_ulong],
+    ['min', get_ulong],
+    ['max', get_ulong],
+  ],
+  "SPELSPDT": [
+    ['type', get_ulong],
+    ['cost', get_ulong],
+    ['flags', get_ulong],
+  ],
+  "SPELENAM": [
+    ['effect', get_ushort],
+    ['skill', get_ubyte],
+    ['attr', get_ubyte],
+    ['range', get_ulong],
+    ['area', get_ulong],
+    ['duration', get_ulong],
+    ['min', get_ulong],
+    ['max', get_ulong],
   ],
   "QUESDATA": [ ['data', get_string] ],
   "INFOINAM": [ ['name', get_string] ],
@@ -156,6 +194,74 @@ const recref3 = {
   "BOOKENAM_enchant": [['ENCH','NAME','name']],
 };
 
+const attributes3 = [
+  "Strength", "Intelligence", "Willpower", "Agility", "Speed", "Endurance",
+  "Personality", "Luck",
+];
+
+const skills3 = [
+  "Block", "Armorer", "Medium Armor", "Heavy Armor", "Blunt Weapon",
+  "Long Blade", "Axe", "Spear", "Athletics", "Enchant", "Destruction",
+  "Alteration", "Illusion", "Conjuration", "Mysticism", "Restoration",
+  "Alchemy", "Unarmored", "Security", "Sneak", "Acrobatics", "Light Armor",
+  "Short Blade", "Marksman", "Mercantile", "Speechcraft", "Hand-to-hand"
+];
+
+const effects3 = [
+  "Water Breathing", "Swift Swim", "Water Walking", "Shield", "Fire Shield",
+  "Lightning Shield", "Frost Shield", "Burden", "Feather", "Jump", "Levitate",
+  "SlowFall", "Lock", "Open", "Fire Damage", "Shock Damage", "Frost Damage",
+  "Drain Attribute", "Drain Health", "Drain Magicka", "Drain Fatigue",
+  "Drain Skill", "Damage Attribute", "Damage Health", "Damage Magicka",
+  "Damage Fatigue", "Damage Skill", "Poison", "Weakness to Fire",
+  "Weakness to Frost", "Weakness to Shock", "Weakness to Magicka",
+  "Weakness to Common Disease", "Weakness to Blight Disease",
+  "Weakness to Corprus Disease", "Weakness to Poison",
+  "Weakness to Normal Weapons", "Disintegrate Weapon", "Disintegrate Armor",
+  "Invisibility", "Chameleon", "Light", "Sanctuary", "Night Eye", "Charm",
+  "Paralyze", "Silence", "Blind", "Sound", "Calm Humanoid", "Calm Creature",
+  "Frenzy Humanoid", "Frenzy Creature", "Demoralize Humanoid",
+  "Demoralize Creature", "Rally Humanoid", "Rally Creature", "Dispel",
+  "Soultrap", "Telekinesis", "Mark", "Recall", "Divine Intervention",
+  "Almsivi Intervention", "Detect Animal", "Detect Enchantment", "Detect Key",
+  "Spell Absorption", "Reflect", "Cure Common Disease", "Cure Blight Disease",
+  "Cure Corprus Disease", "Cure Poison", "Cure Paralyzation",
+  "Restore Attribute", "Restore Health", "Restore Magicka", "Restore Fatigue",
+  "Restore Skill", "Fortify Attribute", "Fortify Health", "Fortify Magicka",
+  "Fortify Fatigue", "Fortify Skill", "Fortify Maximum Magicka",
+  "Absorb Attribute", "Absorb Health", "Absorb Magicka", "Absorb Fatigue",
+  "Absorb Skill", "Resist Fire", "Resist Frost", "Resist Shock",
+  "Resist Magicka", "Resist Common Disease", "Resist Blight Disease",
+  "Resist Corprus Disease", "Resist Poison", "Resist Normal Weapons",
+  "Resist Paralysis", "Remove Curse", "Turn Undead", "Summon Scamp",
+  "Summon Clannfear", "Summon Daedroth", "Summon Dremora",
+  "Summon Ancestral Ghost", "Summon Skeletal Minion", "Summon Bonewalker",
+  "Summon Greater Bonewalker", "Summon Bonelord", "Summon Winged Twilight",
+  "Summon Hunger", "Summon Golden Saint", "Summon Flame Atronach",
+  "Summon Frost Atronach", "Summon Storm Atronach", "Fortify Attack",
+  "Command Creature", "Command Humanoid", "Bound Dagger", "Bound Longsword",
+  "Bound Mace", "Bound Battle Axe", "Bound Spear", "Bound Longbow",
+  "EXTRA SPELL", "Bound Cuirass", "Bound Helm", "Bound Boots", "Bound Shield",
+  "Bound Gloves", "Corprus", "Vampirism", "Summon Centurion Sphere",
+  "Sun Damage", "Stunted Magicka"
+];
+
+const idmap3 = {
+  'ALCHENAM_effect': effects3,
+  'ALCHENAM_attr': attributes3,
+  'ALCHENAM_skill': skills3,
+  'ENCHENAM_effect': effects3,
+  'ENCHENAM_attr': attributes3,
+  'ENCHENAM_skill': skills3,
+  'ENCHENAM_range': ['Self','Touch','Target'],
+  'ENCHENDT_type': ['Once','On Strike','When Used','Const. Effect'],
+  'SPELENAM_effect': effects3,
+  'SPELENAM_attr': attributes3,
+  'SPELENAM_skill': skills3,
+  'SPELENAM_range': ['Self','Touch','Target'],
+  'SPELSPDT_type': ['Spell','Ability','Blight','Disease','Cure','Power'],
+}
+
 function Record(view,parent=null) {
   this.tag = get_string(view,4);
   this.size = get_ulong(view);
@@ -212,9 +318,11 @@ function record_table(rec) {
       for (const [key,val] of Object.entries(sub.data)) {
         $('<td>').text(key).appendTo(tr);
         const td = $('<td>').appendTo(tr);
-        const val_span = $('<span class="val">').text(val).appendTo(td);
-        edit_record_value(val_span);
         const tag = rec.tag + sub.tag +'_'+ key;
+        let val2 = idmap3[tag];
+        val2 = val2 ? val2[val] || val : val;
+        const val_span = $('<span class="val">').text(val2).appendTo(td);
+        edit_record_value(val_span);
         const refs = recref3[tag];
         if (refs) {
           $('<span class="ref click">').on('click',function(e){
