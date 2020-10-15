@@ -1,64 +1,94 @@
 var view = null;
 var recs = [ ];
 
+function emplace(arr,x) { return arr[arr.push(x)-1]; }
+
 const utf8decoder = new TextDecoder("utf-8");
 function str(a,n) {
   return utf8decoder.decode(new Uint8Array(view.buffer,a,n));
 }
 
-function _u1(a) { return [view.getUint8    (a,true),a+1]; }
-function _i1(a) { return [view.getInt8     (a,true),a+1]; }
-function _u2(a) { return [view.getUint16   (a,true),a+2]; }
-function _u4(a) { return [view.getUint32   (a,true),a+4]; }
-function _i4(a) { return [view.getInt32    (a,true),a+4]; }
-function _f4(a) { return [view.getFloat32  (a,true),a+4]; }
-function _u8(a) { return [view.getBigUint64(a,true),a+8]; }
-function _u1n(a,n) { return [new Uint8Array(view.buffer,a,n), a+n]; }
-function _zstr(a,n) {
-  let arr;
-  [arr,a] = _u1n(a,n);
-  while (arr[--n]==0);
-  return [utf8decoder.decode(arr.subarray(0,n+1)), a];
-}
-function _bzstr(a) {
-  let n;
-  [n,a] = _u1(a);
-  return _zstr(a,n);
-}
-function _time(a) {
-  // year, month, dayofweek, day, hour, minutes, seconds, milliseconds
-  return [new Date( ...[0,0,2,0,0,0,0].map(x => ([,a]=_u2(a+x))[0]) ),a];
-}
+const _u1 = {
+  r: a => [view.getUint8(a), a+1]
+};
+const _i1 = {
+  r: a => [view.getInt8(a), a+1]
+};
+const _u2 = {
+  r: a => [view.getUint16(a,true), a+2]
+};
+const _u4 = {
+  r: a => [view.getUint32(a,true), a+4]
+};
+const _i4 = {
+  r: a => [view.getInt32(a,true), a+4]
+};
+const _f4 = {
+  r: a => [view.getFloat32(a,true), a+4]
+};
+const _u8 = {
+  r: a => [view.getBigUint64(a,true), a+8]
+};
+const _u1n = {
+  r: (a,n) => [new Uint8Array(view.buffer,a,n), a+n]
+};
+const _zstr = {
+  r: (a,n) => {
+    let arr;
+    [arr,a] = _u1n.r(a,n);
+    while (arr[--n]==0);
+    return [utf8decoder.decode(arr.subarray(0,n+1)), a];
+  }
+};
+const _bzstr = {
+  r: a => {
+    let n;
+    [n,a] = _u1.r(a);
+    return _zstr.r(a,n);
+  }
+};
+const _time = {
+  r: a => [new Date( ...[0,0,2,0,0,0,0].map(x => ([,a]=_u2.r(a+x))[0]) ), a]
+};
 
 const format3 = {
   "NAME": [ ['name', _zstr] ],
   "FNAM": [ ['name', _zstr] ],
   "MODL": [ ['model', _zstr] ],
+  "NPCO": [
+    ['count', _i4],
+    ['item', _zstr]
+  ],
   "TES3HEDR": [
     ['version', _f4],
     ['type', _u4],
-    ['author', view => _zstr(view,32)],
-    ['description', view => _zstr(view,256)],
+    ['author', _zstr, 32],
+    ['description', _zstr, 256],
     ['numrecs', _u4]
   ],
   "TES3GMDT": [
-    ["_1", view => [...Array(6)].map(() => _f4(view))],
-    ["CellName", view => _zstr(view,64)],
-    ["_3", _f4],
-    ["CharacterName", view => _zstr(view,32)]
+    ['', {
+      r: a => [ [...Array(6)].map(() => ([,a]=_f4.r(a))[0]), a ]
+    }],
+    ['CellName', _zstr, 64],
+    ['', _f4],
+    ['CharacterName', _zstr, 32]
   ],
   "TES3DATA": [ ['FileSize', _u8] ],
   "TES3MAST": [ ['name', _zstr] ],
   "TES3SCRS": [ ['screenshot', _u1n] ],
   "FMAPMAPD": [ ['map', _u1n] ],
   "JOURNAME": [
-    ['journal', (view,n) => {
-      const arr = _u1n(view,n);
-      const end = arr.indexOf(0);
-      return [
-        utf8decoder.decode(arr.subarray(0,end)),
-        arr.subarray(end) // what is this?
-      ];
+    ['journal', {
+      r: (a,n) => {
+        let arr;
+        [arr,a] = _u1n.r(a,n);
+        const end = arr.indexOf(0);
+        return [[
+          utf8decoder.decode(arr.subarray(0,end)),
+          arr.subarray(end) // what is this?
+        ], a];
+      }
     }]
   ],
   "ALCHTEXT": [ ['icon', _zstr] ],
@@ -112,12 +142,15 @@ const format3 = {
   "INFOINAM": [ ['name', _zstr] ],
   "INFOACDT": [ ['name', _zstr] ],
   "DIALXIDX": [ ['name', _u4 ] ],
-  "GLOBFLTV": [ ['val', (view,n,p) => { // TODO: make sure this is correct
-      const t = p.find('FNAM').data.name;
-      if (t=='s') return (_u2(view),_u2(view));
-      if (t=='l') return _u4(view);
-      if (t=='f') return _f4(view);
-    }] ],
+  "GLOBFLTV": [ ['val', {
+    r: (a,n,p) => { // TODO: make sure this is correct
+      switch (p.find('FNAM').data[0]) {
+        case 's': return _u2.r(a+2);
+        case 'l': return _u4.r(a);
+        case 'f': return _f4.r(a);
+      }
+    }
+  }] ],
   "CLASDESC": [ ['desc', _zstr] ],
   "CLOTITEX": [ ['texture', _zstr] ],
   "CLOTENAM": [ ['enchant', _zstr] ],
@@ -125,10 +158,6 @@ const format3 = {
   "CREACNAM": [ ['class', _zstr] ],
   "CREASCRI": [ ['script', _zstr] ],
   "CREANPCS": [ ['spell', _zstr] ],
-  "CREANPCO": [
-    ['count', _i4],
-    ['item', (view,n) => _zstr(view,n-4)]
-  ],
   "NPC_CNAM": [ ['class', _zstr] ],
   "NPC_SCRI": [ ['script', _zstr] ],
   "NPC_ANAM": [ ['faction', _zstr] ],
@@ -136,18 +165,6 @@ const format3 = {
   "NPC_RNAM": [ ['race', _zstr] ],
   "NPC_BNAM": [ ['head', _zstr] ],
   "NPC_KNAM": [ ['hair', _zstr] ],
-  "NPC_NPCO": [
-    ['count', _i4],
-    ['item', (view,n) => _zstr(view,n-4)]
-  ],
-  "CNTCNPCO": [
-    ['count', _i4],
-    ['item', (view,n) => _zstr(view,n-4)]
-  ],
-  "CONTNPCO": [
-    ['count', _i4],
-    ['item', (view,n) => _zstr(view,n-4)]
-  ],
   "CONTSCRI": [ ['script', _zstr] ],
   "CELLSCRI": [ ['script', _zstr] ],
   "CELLCNAM": [ ['owner', _zstr] ],
@@ -248,38 +265,34 @@ const idmap3 = {
   'SPELSPDT_type': ['Spell','Ability','Blight','Disease','Cure','Power'],
 }
 
-function Record(view,parent=null) {
-  this.tag = _zstr(view,4);
-  this.size = _u4(view);
+function Record(a,parent=null) {
+  this.tag = str(a,4);
+  [this.size,a] = _u4.r(a+4);
 
-  this.parent = parent;
+  let b = a + this.size;
   if (!parent) {
-    this.flags = _u1n(view,8);
-
+    [this.flags,a] = _u1n.r(a,8); b += 8;
     this.children = [ ];
-    const end = view[0].byteOffset + this.size;
-    while (view[0].byteOffset < end)
-      this.children.push(new Record(view,this));
+    while (a < b)
+      a += 8 + emplace(this.children,new Record(a,this)).size;
   } else {
+    this.parent = parent;
     const fmt = format3[parent.tag+this.tag] || format3[this.tag];
     if (fmt) {
-      this.data = { };
-      const a = view[0].byteOffset;
-      for (const x of fmt)
-        this.data[x[0]] = x[1](view,this.size,parent);
-      const read = view[0].byteOffset-a;
-      if (read != this.size)
-        throw 'size of a '+parent.tag+'.'+this.tag+' ('+this.size+')'
-          + ' not equal to size read ('+read+')';
+      this.data = fmt.map(x => ([,a] = x[1].r(a,x[2]||(b-a),parent))[0]);
     } else {
-      // this.data = _zstr(view,this.size);
-      const v = av(view,this.size);
-      this.data = new DataView(v.buffer,v.byteOffset,this.size)
+      this.data = new DataView(view.buffer,a,this.size)
+      a += this.size;
     }
+  }
+  if (a != b) {
+    console.log(this);
+    throw 'size of a '+(parent ? parent.tag+'.' : '')+this.tag
+      + ' ('+this.size+')'+' not equal to size read ('+(this.size+b-a)+')';
   }
 }
 Record.prototype.find = function(tag) {
-  return this.children.find(x => x.tag == tag);
+  return this.children.find(x => x.tag === tag);
 }
 
 function record_table(rec) {
@@ -409,25 +422,26 @@ function read_es_file(file) {
 
     if (str(0,4)=="TES3") {
 
-      const view = [data_view];
-
+      console.time('a');
       recs = [ ];
-      while (view[0].byteOffset < size)
-        recs.push(new Record(view));
+      for (let a=0; a<size; )
+        a += 16 + emplace(recs,new Record(a)).size;
 
-      function getrec(a,b) { return recs.find(x => x.tag==a).find(b); }
+      function getrec(a,b) { return recs.find(x => x.tag===a).find(b); }
       add_text(p1,recs.length-1+' records');
 
       const HEDR = getrec('TES3','HEDR').data;
       const p2 = $('<p class="mc">').appendTo(info);
-      add_text(p2,HEDR.description,'; ');
+      add_text(p2,HEDR[3],'; ');
 
-      const is_save = HEDR.type==32;
+      const is_save = HEDR[1]===32;
       if (is_save) {
         const GMDT = getrec('TES3','GMDT').data;
-        add_text(p2,GMDT.CharacterName+'; '+GMDT.CellName,'; ');
+        add_text(p2,GMDT[3]+'; '+GMDT[1],'; ');
       }
+      console.timeEnd('a');
 
+      /*
       const tab_defs = [
         ['Records',function(tab){
           const div = $('<div>');
@@ -568,6 +582,7 @@ function read_es_file(file) {
         });
       }
       $('#main').show();
+      */
 
     } else if (str(0,4)=="TES4") {
 
@@ -577,8 +592,9 @@ function read_es_file(file) {
       ].concat(is_save ? [
         ['Info',function(tab){
           const div = $('<div>');
+          console.time('a');
           let offset = 12;
-          function get(f) { return ([,offset] = f(offset))[0]; }
+          function get(f) { return ([,offset] = f.r(offset))[0]; }
           const header = {
             majorVersion: get(_u1),
             minorVersion: get(_u1),
@@ -603,7 +619,7 @@ function read_es_file(file) {
             $('<pre>').text(JSON.stringify(header,null,2))
           ).appendTo(row);
           {
-            const data = get(a => _u1n(a,header.screenshot.size-8));
+            const data = get({r: a => _u1n.r(a,header.screenshot.size-8)});
             const ctx = $('<canvas>').appendTo(
               $('<div class="inline">').appendTo(row)
             )[0].getContext('2d');
@@ -626,6 +642,7 @@ function read_es_file(file) {
           for (let i=0; i<pluginsNum; ++i)
             $('<p class="narrow">').text(get(_bzstr)).appendTo(row);
 
+          console.timeEnd('a');
           return div;
         }]
       ] : [
