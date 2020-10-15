@@ -1,73 +1,59 @@
-function av(view,offset) { // advance view
-  const prev = view[0];
-  view[0] = new DataView(prev.buffer,prev.byteOffset+offset);
-  return prev;
-}
-// TODO: try [view,a]
+var view = null;
+var recs = [ ];
 
 const utf8decoder = new TextDecoder("utf-8");
-function str(view,a,n) {
+function str(a,n) {
   return utf8decoder.decode(new Uint8Array(view.buffer,a,n));
 }
 
-function get_ubyte  (view) { return av(view,1).getUint8  (0,true); }
-function get_byte   (view) { return av(view,1).getInt8   (0,true); }
-function get_ushort (view) { return av(view,2).getUint16 (0,true); }
-function get_ulong  (view) { return av(view,4).getUint32 (0,true); }
-function get_long   (view) { return av(view,4).getInt32  (0,true); }
-function get_float  (view) { return av(view,4).getFloat32(0,true); }
-function get_u64    (view) { return av(view,8).getBigUint64(0,true); }
-function get_ubytes (view,n) {
-  const v = av(view,n);
-  return new Uint8Array(v.buffer,v.byteOffset,n);
+function _u1(a) { return [view.getUint8    (a,true),a+1]; }
+function _i1(a) { return [view.getInt8     (a,true),a+1]; }
+function _u2(a) { return [view.getUint16   (a,true),a+2]; }
+function _u4(a) { return [view.getUint32   (a,true),a+4]; }
+function _i4(a) { return [view.getInt32    (a,true),a+4]; }
+function _f4(a) { return [view.getFloat32  (a,true),a+4]; }
+function _u8(a) { return [view.getBigUint64(a,true),a+8]; }
+function _u1n(a,n) { return [new Uint8Array(view.buffer,a,n), a+n]; }
+function _zstr(a,n) {
+  let arr;
+  [arr,a] = _u1n(a,n);
+  while (arr[--n]==0);
+  return [utf8decoder.decode(arr.subarray(0,n+1)), a];
 }
-function get_string(view,n) {
-  let arr = get_ubytes(view,n);
-  while (arr[n-1]==0) --n;
-  return utf8decoder.decode(arr.subarray(0,n));
+function _bzstr(a) {
+  let n;
+  [n,a] = _u1(a);
+  return _zstr(a,n);
 }
-function get_bstring(view) {
-  return get_string(view,get_ubyte(view));
+function _time(a) {
+  // year, month, dayofweek, day, hour, minutes, seconds, milliseconds
+  return [new Date( ...[0,0,2,0,0,0,0].map(x => ([,a]=_u2(a+x))[0]) ),a];
 }
-function get_systemtime(view) {
-  return new Date(
-    get_ushort(view), // year
-    get_ushort(view), // month
- // get_ushort(view), // dayofweek
-    get_ushort((av(view,2),view)), // day
-    get_ushort(view), // hour
-    get_ushort(view), // minutes
-    get_ushort(view), // seconds
-    get_ushort(view)  // milliseconds
-  );
-}
-
-var recs = [ ];
 
 const format3 = {
-  "NAME": [ ['name', get_string] ],
-  "FNAM": [ ['name', get_string] ],
-  "MODL": [ ['model', get_string] ],
+  "NAME": [ ['name', _zstr] ],
+  "FNAM": [ ['name', _zstr] ],
+  "MODL": [ ['model', _zstr] ],
   "TES3HEDR": [
-    ['version', get_float],
-    ['type', get_ulong],
-    ['author', view => get_string(view,32)],
-    ['description', view => get_string(view,256)],
-    ['numrecs', get_ulong]
+    ['version', _f4],
+    ['type', _u4],
+    ['author', view => _zstr(view,32)],
+    ['description', view => _zstr(view,256)],
+    ['numrecs', _u4]
   ],
   "TES3GMDT": [
-    ["_1", view => [...Array(6)].map(() => get_float(view))],
-    ["CellName", view => get_string(view,64)],
-    ["_3", get_float],
-    ["CharacterName", view => get_string(view,32)]
+    ["_1", view => [...Array(6)].map(() => _f4(view))],
+    ["CellName", view => _zstr(view,64)],
+    ["_3", _f4],
+    ["CharacterName", view => _zstr(view,32)]
   ],
-  "TES3DATA": [ ['FileSize', get_u64] ],
-  "TES3MAST": [ ['name', get_string] ],
-  "TES3SCRS": [ ['screenshot', get_ubytes] ],
-  "FMAPMAPD": [ ['map', get_ubytes] ],
+  "TES3DATA": [ ['FileSize', _u8] ],
+  "TES3MAST": [ ['name', _zstr] ],
+  "TES3SCRS": [ ['screenshot', _u1n] ],
+  "FMAPMAPD": [ ['map', _u1n] ],
   "JOURNAME": [
     ['journal', (view,n) => {
-      const arr = get_ubytes(view,n);
+      const arr = _u1n(view,n);
       const end = arr.indexOf(0);
       return [
         utf8decoder.decode(arr.subarray(0,end)),
@@ -75,107 +61,107 @@ const format3 = {
       ];
     }]
   ],
-  "ALCHTEXT": [ ['icon', get_string] ],
+  "ALCHTEXT": [ ['icon', _zstr] ],
   "ALCHALDT": [
-    ['weight', get_float],
-    ['value', get_ulong],
-    ['autocalc', get_ulong],
+    ['weight', _f4],
+    ['value', _u4],
+    ['autocalc', _u4],
   ],
   "ALCHENAM": [
-    ['effect', get_ushort],
-    ['skill', get_ubyte],
-    ['attr', get_ubyte],
-    ['range', get_ulong],
-    ['area', get_ulong],
-    ['duration', get_ulong],
-    ['min', get_ulong],
-    ['max', get_ulong],
+    ['effect', _u2],
+    ['skill', _u1],
+    ['attr', _u1],
+    ['range', _u4],
+    ['area', _u4],
+    ['duration', _u4],
+    ['min', _u4],
+    ['max', _u4],
   ],
   "ENCHENDT": [
-    ['type', get_ulong],
-    ['cost', get_ulong],
-    ['charge', get_ulong],
-    ['autocalc', get_ulong],
+    ['type', _u4],
+    ['cost', _u4],
+    ['charge', _u4],
+    ['autocalc', _u4],
   ],
   "ENCHENAM": [
-    ['effect', get_ushort],
-    ['skill', get_ubyte],
-    ['attr', get_ubyte],
-    ['range', get_ulong],
-    ['area', get_ulong],
-    ['duration', get_ulong],
-    ['min', get_ulong],
-    ['max', get_ulong],
+    ['effect', _u2],
+    ['skill', _u1],
+    ['attr', _u1],
+    ['range', _u4],
+    ['area', _u4],
+    ['duration', _u4],
+    ['min', _u4],
+    ['max', _u4],
   ],
   "SPELSPDT": [
-    ['type', get_ulong],
-    ['cost', get_ulong],
-    ['flags', get_ulong],
+    ['type', _u4],
+    ['cost', _u4],
+    ['flags', _u4],
   ],
   "SPELENAM": [
-    ['effect', get_ushort],
-    ['skill', get_ubyte],
-    ['attr', get_ubyte],
-    ['range', get_ulong],
-    ['area', get_ulong],
-    ['duration', get_ulong],
-    ['min', get_ulong],
-    ['max', get_ulong],
+    ['effect', _u2],
+    ['skill', _u1],
+    ['attr', _u1],
+    ['range', _u4],
+    ['area', _u4],
+    ['duration', _u4],
+    ['min', _u4],
+    ['max', _u4],
   ],
-  "QUESDATA": [ ['data', get_string] ],
-  "INFOINAM": [ ['name', get_string] ],
-  "INFOACDT": [ ['name', get_string] ],
-  "DIALXIDX": [ ['name', get_ulong ] ],
+  "QUESDATA": [ ['data', _zstr] ],
+  "INFOINAM": [ ['name', _zstr] ],
+  "INFOACDT": [ ['name', _zstr] ],
+  "DIALXIDX": [ ['name', _u4 ] ],
   "GLOBFLTV": [ ['val', (view,n,p) => { // TODO: make sure this is correct
       const t = p.find('FNAM').data.name;
-      if (t=='s') return (get_ushort(view),get_ushort(view));
-      if (t=='l') return get_ulong(view);
-      if (t=='f') return get_float(view);
+      if (t=='s') return (_u2(view),_u2(view));
+      if (t=='l') return _u4(view);
+      if (t=='f') return _f4(view);
     }] ],
-  "CLASDESC": [ ['desc', get_string] ],
-  "CLOTITEX": [ ['texture', get_string] ],
-  "CLOTENAM": [ ['enchant', get_string] ],
-  "CLOTBNAM": [ ['mesh', get_string] ],
-  "CREACNAM": [ ['class', get_string] ],
-  "CREASCRI": [ ['script', get_string] ],
-  "CREANPCS": [ ['spell', get_string] ],
+  "CLASDESC": [ ['desc', _zstr] ],
+  "CLOTITEX": [ ['texture', _zstr] ],
+  "CLOTENAM": [ ['enchant', _zstr] ],
+  "CLOTBNAM": [ ['mesh', _zstr] ],
+  "CREACNAM": [ ['class', _zstr] ],
+  "CREASCRI": [ ['script', _zstr] ],
+  "CREANPCS": [ ['spell', _zstr] ],
   "CREANPCO": [
-    ['count', get_long],
-    ['item', (view,n) => get_string(view,n-4)]
+    ['count', _i4],
+    ['item', (view,n) => _zstr(view,n-4)]
   ],
-  "NPC_CNAM": [ ['class', get_string] ],
-  "NPC_SCRI": [ ['script', get_string] ],
-  "NPC_ANAM": [ ['faction', get_string] ],
-  "NPC_NPCS": [ ['spell', get_string] ],
-  "NPC_RNAM": [ ['race', get_string] ],
-  "NPC_BNAM": [ ['head', get_string] ],
-  "NPC_KNAM": [ ['hair', get_string] ],
+  "NPC_CNAM": [ ['class', _zstr] ],
+  "NPC_SCRI": [ ['script', _zstr] ],
+  "NPC_ANAM": [ ['faction', _zstr] ],
+  "NPC_NPCS": [ ['spell', _zstr] ],
+  "NPC_RNAM": [ ['race', _zstr] ],
+  "NPC_BNAM": [ ['head', _zstr] ],
+  "NPC_KNAM": [ ['hair', _zstr] ],
   "NPC_NPCO": [
-    ['count', get_long],
-    ['item', (view,n) => get_string(view,n-4)]
+    ['count', _i4],
+    ['item', (view,n) => _zstr(view,n-4)]
   ],
   "CNTCNPCO": [
-    ['count', get_long],
-    ['item', (view,n) => get_string(view,n-4)]
+    ['count', _i4],
+    ['item', (view,n) => _zstr(view,n-4)]
   ],
   "CONTNPCO": [
-    ['count', get_long],
-    ['item', (view,n) => get_string(view,n-4)]
+    ['count', _i4],
+    ['item', (view,n) => _zstr(view,n-4)]
   ],
-  "CONTSCRI": [ ['script', get_string] ],
-  "CELLSCRI": [ ['script', get_string] ],
-  "CELLCNAM": [ ['owner', get_string] ],
-  "BOOKITEX": [ ['texture', get_string] ],
-  "BOOKTEXT": [ ['text', get_string] ],
-  "BOOKENAM": [ ['enchant', get_string] ],
-  "STLNONAM": [ ['owner', get_string] ],
-  "PCDTDNAM": [ ['topic', get_string] ],
-  "KLSTKNAM": [ ['name', get_string] ],
-  "ARMOENAM": [ ['enchant', get_string] ],
-  "WEAPENAM": [ ['enchant', get_string] ],
-  "WEAPITEX": [ ['texture', get_string] ],
-  "ARMOITEX": [ ['texture', get_string] ],
-  "ARMOBNAM": [ ['body', get_string] ],
+  "CONTSCRI": [ ['script', _zstr] ],
+  "CELLSCRI": [ ['script', _zstr] ],
+  "CELLCNAM": [ ['owner', _zstr] ],
+  "BOOKITEX": [ ['texture', _zstr] ],
+  "BOOKTEXT": [ ['text', _zstr] ],
+  "BOOKENAM": [ ['enchant', _zstr] ],
+  "STLNONAM": [ ['owner', _zstr] ],
+  "PCDTDNAM": [ ['topic', _zstr] ],
+  "KLSTKNAM": [ ['name', _zstr] ],
+  "ARMOENAM": [ ['enchant', _zstr] ],
+  "WEAPENAM": [ ['enchant', _zstr] ],
+  "WEAPITEX": [ ['texture', _zstr] ],
+  "ARMOITEX": [ ['texture', _zstr] ],
+  "ARMOBNAM": [ ['body', _zstr] ],
 };
 
 const recref3 = {
@@ -263,12 +249,12 @@ const idmap3 = {
 }
 
 function Record(view,parent=null) {
-  this.tag = get_string(view,4);
-  this.size = get_ulong(view);
+  this.tag = _zstr(view,4);
+  this.size = _u4(view);
 
   this.parent = parent;
   if (!parent) {
-    this.flags = get_ubytes(view,8);
+    this.flags = _u1n(view,8);
 
     this.children = [ ];
     const end = view[0].byteOffset + this.size;
@@ -286,7 +272,7 @@ function Record(view,parent=null) {
         throw 'size of a '+parent.tag+'.'+this.tag+' ('+this.size+')'
           + ' not equal to size read ('+read+')';
     } else {
-      // this.data = get_string(view,this.size);
+      // this.data = _zstr(view,this.size);
       const v = av(view,this.size);
       this.data = new DataView(v.buffer,v.byteOffset,this.size)
     }
@@ -414,14 +400,14 @@ function draw(div,data,pic) {
 function read_es_file(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
-    const data_view = new DataView(e.target.result);
-    const size = data_view.byteLength;
+    view = new DataView(e.target.result);
+    const size = view.byteLength;
 
     const info = $('#file_info').empty();
     const p1 = $('<p class="tt">').appendTo(info);
     add_text(p1,size+' bytes');
 
-    if (str(data_view,0,4)=="TES3") {
+    if (str(0,4)=="TES3") {
 
       const view = [data_view];
 
@@ -442,7 +428,7 @@ function read_es_file(file) {
         add_text(p2,GMDT.CharacterName+'; '+GMDT.CellName,'; ');
       }
 
-      var tab_defs = [
+      const tab_defs = [
         ['Records',function(tab){
           const div = $('<div>');
           const sel = $('<select id="record_select">').appendTo(div);
@@ -577,41 +563,39 @@ function read_es_file(file) {
           if (!$(this).hasClass('active')) {
             $('#tabs > button.active').removeClass('active');
             $(this).addClass('active');
-            if (tab.length < 3)
-              tab.push(tab[1](tab));
-            tab_div.empty().append(tab[2]);
+            tab_div.empty().append(tab[1](tab));
           }
         });
       }
       $('#main').show();
 
-    } else if (str(data_view,0,4)=="TES4") {
+    } else if (str(0,4)=="TES4") {
 
-      const is_save = str(data_view,0,12)=='TES4SAVEGAME';
+      const is_save = str(4,8)=='SAVEGAME';
 
-      var tab_defs = [
+      const tab_defs = [
       ].concat(is_save ? [
         ['Info',function(tab){
           const div = $('<div>');
-          const view = [data_view];
-          av(view,12);
+          let offset = 12;
+          function get(f) { return ([,offset] = f(offset))[0]; }
           const header = {
-            majorVersion: get_ubyte(view),
-            minorVersion: get_ubyte(view),
-            exeTime: get_systemtime(view),
-            headerVersion: get_ulong(view),
-            saveHeaderSize: get_ulong(view),
-            saveNum: get_ulong(view),
-            pcName: get_bstring(view),
-            pcLevel: get_ushort(view),
-            pcLocation: get_bstring(view),
-            gameDays: get_float(view),
-            gameTicks: get_ulong(view),
-            gameTime: get_systemtime(view),
+            majorVersion: get(_u1),
+            minorVersion: get(_u1),
+            exeTime: get(_time),
+            headerVersion: get(_u4),
+            saveHeaderSize: get(_u4),
+            saveNum: get(_u4),
+            pcName: get(_bzstr),
+            pcLevel: get(_u2),
+            pcLocation: get(_bzstr),
+            gameDays: get(_f4),
+            gameTicks: get(_u4),
+            gameTime: get(_time),
             screenshot: {
-              size: get_ulong(view),
-              width: get_ulong(view),
-              height: get_ulong(view),
+              size: get(_u4),
+              width: get(_u4),
+              height: get(_u4),
             }
           };
           let row = $('<div class="row">').appendTo(div);
@@ -619,7 +603,7 @@ function read_es_file(file) {
             $('<pre>').text(JSON.stringify(header,null,2))
           ).appendTo(row);
           {
-            const data = get_ubytes(view,header.screenshot.size-8);
+            const data = get(a => _u1n(a,header.screenshot.size-8));
             const ctx = $('<canvas>').appendTo(
               $('<div class="inline">').appendTo(row)
             )[0].getContext('2d');
@@ -637,10 +621,10 @@ function read_es_file(file) {
           }
           row = $('<div class="row">').appendTo(div);
 
-          const pluginsNum = get_ubyte(view);
+          const pluginsNum = get(_u1);
           $('<h2>').text('Plugins ['+pluginsNum+']:').appendTo(row);
           for (let i=0; i<pluginsNum; ++i)
-            $('<p class="narrow">').text(get_bstring(view)).appendTo(row);
+            $('<p class="narrow">').text(get(_bzstr)).appendTo(row);
 
           return div;
         }]
@@ -653,9 +637,7 @@ function read_es_file(file) {
           if (!$(this).hasClass('active')) {
             $('#tabs > button.active').removeClass('active');
             $(this).addClass('active');
-            if (tab.length < 3)
-              tab.push(tab[1](tab));
-            tab_div.empty().append(tab[2]);
+            tab_div.empty().append(tab[1](tab));
           }
         });
       }
