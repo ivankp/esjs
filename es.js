@@ -68,6 +68,7 @@ const format3 = {
   "NAME": [ ['name', _zstr] ],
   "FNAM": [ ['name', _zstr] ],
   "MODL": [ ['model', _zstr] ],
+  "ITEX": [ ['texture', _zstr] ],
   "SCRI": [ ['script', _zstr] ],
   "LUAT": [ ['lua', _zstr] ],
   "NPCO": [
@@ -165,7 +166,6 @@ const format3 = {
     }
   }] ],
   "CLASDESC": [ ['desc', _zstr] ],
-  "CLOTITEX": [ ['texture', _zstr] ],
   "CLOTENAM": [ ['enchant', _zstr] ],
   "CLOTBNAM": [ ['mesh', _zstr] ],
   "CREACNAM": [ ['class', _zstr] ],
@@ -177,7 +177,6 @@ const format3 = {
   "NPC_BNAM": [ ['head', _zstr] ],
   "NPC_KNAM": [ ['hair', _zstr] ],
   "CELLCNAM": [ ['owner', _zstr] ],
-  "BOOKITEX": [ ['texture', _zstr] ],
   "BOOKTEXT": [ ['text', _zstr] ],
   "BOOKENAM": [ ['enchant', _zstr] ],
   "STLNONAM": [ ['owner', _zstr] ],
@@ -185,8 +184,6 @@ const format3 = {
   "KLSTKNAM": [ ['name', _zstr] ],
   "ARMOENAM": [ ['enchant', _zstr] ],
   "WEAPENAM": [ ['enchant', _zstr] ],
-  "WEAPITEX": [ ['texture', _zstr] ],
-  "ARMOITEX": [ ['texture', _zstr] ],
   "ARMOBNAM": [ ['body', _zstr] ],
   "PCDTFNAM": [
     // ['faction', _subview],
