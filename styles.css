@@ -89,7 +89,7 @@ span.ref, span.edit, span.editY, span.editN {
   color: blue;
   font-weight: bold;
 }
-span.ref::after { content: "⮷"; }
+span.ref::after { content: "show"; }
 span.edit::after { content: "edit"; }
 span.editY::after { content: "save"; }
 span.editN::after { content: "cancel"; }

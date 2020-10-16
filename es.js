@@ -36,8 +36,9 @@ const _zstr = {
   r: (a,n) => {
     let arr;
     [arr,a] = _u1n.r(a,n);
-    while (arr[--n]==0);
-    return [utf8decoder.decode(arr.subarray(0,n+1)), a];
+    let m = 0;
+    for (; m<n; ++m) if (arr[m]==0) break;
+    return [utf8decoder.decode(arr.subarray(0,m)), a];
   }
 };
 const _bzstr = {
@@ -47,14 +48,28 @@ const _bzstr = {
     return _zstr.r(a,n);
   }
 };
+const _zstr0 = {
+  r: (a,n) => {
+    let [arr,] = _u1n.r(a,n);
+    let m = 0;
+    for (; m<n; ++m) if (arr[m]==0) break;
+    if (m==n) throw '_zstr0: not a null terminated string';
+    return [utf8decoder.decode(arr.subarray(0,m)), a+m+1];
+  }
+};
 const _time = {
   r: a => [new Date( ...[0,0,2,0,0,0,0].map(x => ([,a]=_u2.r(a+x))[0]) ), a]
+};
+const _subview = {
+  r: (a,n) => [new DataView(view.buffer,a,n), a+n]
 };
 
 const format3 = {
   "NAME": [ ['name', _zstr] ],
   "FNAM": [ ['name', _zstr] ],
   "MODL": [ ['model', _zstr] ],
+  "SCRI": [ ['script', _zstr] ],
+  "LUAT": [ ['lua', _zstr] ],
   "NPCO": [
     ['count', _i4],
     ['item', _zstr]
@@ -78,8 +93,7 @@ const format3 = {
   "TES3MAST": [ ['name', _zstr] ],
   "TES3SCRS": [ ['screenshot', _u1n] ],
   "FMAPMAPD": [ ['map', _u1n] ],
-  "JOURNAME": [
-    ['journal', {
+  "JOURNAME": [ ['journal', {
       r: (a,n) => {
         let arr;
         [arr,a] = _u1n.r(a,n);
@@ -89,8 +103,7 @@ const format3 = {
           arr.subarray(end) // what is this?
         ], a];
       }
-    }]
-  ],
+    }] ],
   "ALCHTEXT": [ ['icon', _zstr] ],
   "ALCHALDT": [
     ['weight', _f4],
@@ -156,17 +169,13 @@ const format3 = {
   "CLOTENAM": [ ['enchant', _zstr] ],
   "CLOTBNAM": [ ['mesh', _zstr] ],
   "CREACNAM": [ ['class', _zstr] ],
-  "CREASCRI": [ ['script', _zstr] ],
   "CREANPCS": [ ['spell', _zstr] ],
   "NPC_CNAM": [ ['class', _zstr] ],
-  "NPC_SCRI": [ ['script', _zstr] ],
   "NPC_ANAM": [ ['faction', _zstr] ],
   "NPC_NPCS": [ ['spell', _zstr] ],
   "NPC_RNAM": [ ['race', _zstr] ],
   "NPC_BNAM": [ ['head', _zstr] ],
   "NPC_KNAM": [ ['hair', _zstr] ],
-  "CONTSCRI": [ ['script', _zstr] ],
-  "CELLSCRI": [ ['script', _zstr] ],
   "CELLCNAM": [ ['owner', _zstr] ],
   "BOOKITEX": [ ['texture', _zstr] ],
   "BOOKTEXT": [ ['text', _zstr] ],
@@ -179,22 +188,109 @@ const format3 = {
   "WEAPITEX": [ ['texture', _zstr] ],
   "ARMOITEX": [ ['texture', _zstr] ],
   "ARMOBNAM": [ ['body', _zstr] ],
+  "PCDTFNAM": [
+    // ['faction', _subview],
+    ['faction', _subview, 12],
+    ['name', _zstr0],
+    ['', _subview],
+  ],
+  "PCDTMNAM": [ ['', _zstr] ],
+  "PCDTBNAM": [ ['birthsign', _zstr] ],
+  "PCDTKNAM": [
+    ['1', _u1], ['item', _zstr, 39],
+    ['2', _u1], ['item', _zstr, 39],
+    ['3', _u1], ['item', _zstr, 39],
+    ['4', _u1], ['item', _zstr, 39],
+    ['5', _u1], ['item', _zstr, 39],
+    ['6', _u1], ['item', _zstr, 39],
+    ['7', _u1], ['item', _zstr, 39],
+    ['8', _u1], ['item', _zstr, 39],
+    ['9', _u1], ['item', _zstr, 39],
+    ['0', _u1], ['item', _zstr, 39],
+  ],
+  "FACTRNAM": [ ['rank', _zstr, 32] ],
+  "FACTANAM": [ ['faction', _zstr] ],
+  "FACTINTV": [ ['reaction', _i4] ],
+  "REFRWNAM": [ ['', _zstr] ],
+  // "REGNWEAT": [
+  //   ['Clear',    _u1],
+  //   ['Cloudy',   _u1],
+  //   ['Foggy',    _u1],
+  //   ['Overcast', _u1],
+  //   ['Rain',     _u1],
+  //   ['Thunder',  _u1],
+  //   ['Ash',      _u1],
+  //   ['Blight',   _u1],
+  // ],
+  "REGNBNAM": [ ['sleep creature', _zstr] ],
+  "REGNCNAM": [
+    ['red',   _u1],
+    ['green', _u1],
+    ['blue',  _u1],
+    ['alpha', _u1],
+  ],
+  "SCPTSCHD": [
+    ['name', _zstr, 32],
+    ['NumShorts', _u4],
+    ['NumLongs',  _u4],
+    ['NumFloats', _u4],
+    ['data size', _u4],
+    ['local size', _u4],
+  ],
+  "SPLMNAME": [ ['', _subview] ],
 };
 
 const recref3 = {
-  "NPC_CNAM_class": [['CLAS','NAME','name']],
-  "NPC_NPCS_spell": [['SPEL','NAME','name']],
-  "NPC_NPCO_item": [
-    ['ALCH','NAME','name'],
-    ['CLOT','NAME','name'],
-    ['ARMO','NAME','name'],
-    ['WEAP','NAME','name'],
-    ['BOOK','NAME','name'],
+  "NPC_CNAM-class": [['CLAS','NAME']],
+  "NPC_NPCS-spell": [['SPEL','NAME']],
+  "NPC_NPCO-item": [
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
   ],
-  "CLOTENAM_enchant": [['ENCH','NAME','name']],
-  "ARMOENAM_enchant": [['ENCH','NAME','name']],
-  "WEAPENAM_enchant": [['ENCH','NAME','name']],
-  "BOOKENAM_enchant": [['ENCH','NAME','name']],
+  "CREANPCS-spell": [['SPEL','NAME']],
+  "CREANPCO-item": [
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
+  ],
+  "CRECNPCO-item": [
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
+  ],
+  "CNTCNPCO-item": [
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
+  ],
+  "CONTNPCO-item": [
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
+  ],
+  "CLOTENAM-enchant": [['ENCH','NAME']],
+  "ARMOENAM-enchant": [['ENCH','NAME']],
+  "WEAPENAM-enchant": [['ENCH','NAME']],
+  "BOOKENAM-enchant": [['ENCH','NAME']],
+  "PCDTKNAM-item": [
+    ['SPEL','NAME'],
+    ['ALCH','NAME'],
+    ['CLOT','NAME'],
+    ['ARMO','NAME'],
+    ['WEAP','NAME'],
+    ['BOOK','NAME'],
+  ],
 };
 
 const attributes3 = [
@@ -250,19 +346,19 @@ const effects3 = [
 ];
 
 const idmap3 = {
-  'ALCHENAM_effect': effects3,
-  'ALCHENAM_attr': attributes3,
-  'ALCHENAM_skill': skills3,
-  'ENCHENAM_effect': effects3,
-  'ENCHENAM_attr': attributes3,
-  'ENCHENAM_skill': skills3,
-  'ENCHENAM_range': ['Self','Touch','Target'],
-  'ENCHENDT_type': ['Once','On Strike','When Used','Const. Effect'],
-  'SPELENAM_effect': effects3,
-  'SPELENAM_attr': attributes3,
-  'SPELENAM_skill': skills3,
-  'SPELENAM_range': ['Self','Touch','Target'],
-  'SPELSPDT_type': ['Spell','Ability','Blight','Disease','Cure','Power'],
+  'ALCHENAM-effect': effects3,
+  'ALCHENAM-attr': attributes3,
+  'ALCHENAM-skill': skills3,
+  'ENCHENAM-effect': effects3,
+  'ENCHENAM-attr': attributes3,
+  'ENCHENAM-skill': skills3,
+  'ENCHENAM-range': ['Self','Touch','Target'],
+  'ENCHENDT-type': ['Once','On Strike','When Used','Const. Effect'],
+  'SPELENAM-effect': effects3,
+  'SPELENAM-attr': attributes3,
+  'SPELENAM-skill': skills3,
+  'SPELENAM-range': ['Self','Touch','Target'],
+  'SPELSPDT-type': ['Spell','Ability','Blight','Disease','Cure','Power'],
 }
 
 function Record(a,parent=null) {
@@ -277,13 +373,7 @@ function Record(a,parent=null) {
       a += 8 + emplace(this.children,new Record(a,this)).size;
   } else {
     this.parent = parent;
-    const fmt = format3[parent.tag+this.tag] || format3[this.tag];
-    if (fmt) {
-      this.data = fmt.map(x => ([,a] = x[1].r(a,x[2]||(b-a),parent))[0]);
-    } else {
-      this.data = new DataView(view.buffer,a,this.size)
-      a += this.size;
-    }
+    this.data = this.fmt().map(x => ([,a] = x[1].r(a,x[2]||(b-a),parent))[0]);
   }
   if (a != b) {
     console.log(this);
@@ -294,6 +384,11 @@ function Record(a,parent=null) {
 Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag === tag);
 }
+Record.prototype.fmt = function() {
+  return format3[this.parent.tag + this.tag]
+      || format3[this.tag]
+      || [['',_subview]];
+}
 
 function record_table(rec) {
   const table = $('<table class="rec_data">');
@@ -301,44 +396,48 @@ function record_table(rec) {
   for (const sub of rec.children) {
     const tr = $('<tr>').appendTo(table);
     $('<td>').text(sub.tag).appendTo(tr);
-    if (sub.data.constructor === DataView) {
-      $('<td>').appendTo(tr);
-      new Uint8Array(
-        sub.data.buffer,
-        sub.data.byteOffset,
-        sub.data.byteLength
-      ).reduce( (td,c) => td.append($('<span>').text(
-          (31 < c && c < 127)
-          ? String.fromCharCode(c)
-          : c.toString(16).padStart(2,'0')
-        )), $('<td class="raw">').appendTo(tr)
-      )
-    } else {
-      for (const [key,val] of Object.entries(sub.data)) {
-        $('<td>').text(key).appendTo(tr);
+    const tag = rec.tag + sub.tag;
+    const fmt = sub.fmt();
+    sub.data.forEach((val,i) => {
+      let val2, tag2;
+      const fmti = fmt[i];
+      if (fmti && fmti[0]) {
+        tag2 = tag+'-'+fmti[0];
+        val2 = idmap3[tag2];
+      }
+      val2 = val2 ? val2[val] || val : val;
+
+      $('<td>').text(fmti[0]).appendTo(tr);
+      if (val.constructor === DataView) {
+        new Uint8Array(
+          val.buffer,
+          val.byteOffset,
+          val.byteLength
+        ).reduce( (td,c) => td.append($('<span>').text(
+            (31 < c && c < 127)
+            ? String.fromCharCode(c)
+            : c.toString(16).padStart(2,'0')
+          )), $('<td class="raw">').appendTo(tr)
+        )
+      } else {
         const td = $('<td>').appendTo(tr);
-        const tag = rec.tag + sub.tag +'_'+ key;
-        let val2 = idmap3[tag];
-        val2 = val2 ? val2[val] || val : val;
         const val_span = $('<span class="val">').text(val2).appendTo(td);
         edit_record_value(val_span);
-        const refs = recref3[tag];
+        const refs = recref3[tag2];
         if (refs) {
           $('<span class="ref click">').on('click',function(e){
-            const id = tag + val.replace(/\W/g,'_');
+            const id = tag2 +'-'+ val.replace(/\W/g,'_');
             let subtab = $('#'+id);
             if (subtab.length) {
               subtab.remove();
-              td.removeClass('bold');
             } else {
               const subrec = recs.find(
                 x => refs.some( ref =>
-                  x.tag==ref[0] && x.find(ref[1]).data[ref[2]] === val
+                  x.tag===ref[0] && x.find(ref[1]).data[ref[2]||0] === val
                 )
               );
               if (subrec) {
                 table.after(subtab = record_table(subrec).prop('id',id));
-                td.addClass('bold');
                 $([document.documentElement, document.body]).animate({
                   scrollTop: subtab.offset().top-5
                 }, 1000);
@@ -349,7 +448,7 @@ function record_table(rec) {
           }).appendTo(td);
         }
       }
-    }
+    });
   }
   return table;
 }
@@ -422,7 +521,6 @@ function read_es_file(file) {
 
     if (str(0,4)=="TES3") {
 
-      console.time('a');
       recs = [ ];
       for (let a=0; a<size; )
         a += 16 + emplace(recs,new Record(a)).size;
@@ -439,13 +537,11 @@ function read_es_file(file) {
         const GMDT = getrec('TES3','GMDT').data;
         add_text(p2,GMDT[3]+'; '+GMDT[1],'; ');
       }
-      console.timeEnd('a');
 
-      /*
       const tab_defs = [
         ['Records',function(tab){
           const div = $('<div>');
-          const sel = $('<select id="record_select">').appendTo(div);
+          const sel = $('<select>').appendTo(div);
           $('<option>').appendTo(sel);
           const tags1 = new Set();
           for (let i=1; i<recs.length; ++i) // skip TES3 at 0
@@ -454,16 +550,20 @@ function read_es_file(file) {
             x => $('<option>').text(x).appendTo(sel)
           );
           const subdiv = $('<div>').appendTo(div);
-          $('body').on('change','#record_select',function(){
+          sel.on('change',function(){
             const val = $(this).val();
             subdiv.empty();
             if (val) for (const rec of recs.filter(x => x.tag==val)) {
-              // console.log(rec);
               let lbl = null;
               const name = [ rec.find('NAME'), rec.find('FNAM') ];
-              if (name[0]) lbl = name[0].data.name;
-              if (name[1]) lbl += ' ('+name[1].data.name+')';
-              if (!lbl) lbl = rec.tag;
+              if (name[0]) {
+                lbl = name[0].data[0];
+                if (lbl.length < 256) {
+                  if (name[1]) lbl += ' ('+name[1].data[0]+')';
+                } else lbl = rec.tag;
+              } else if (rec.tag==='SCPT') {
+                lbl = rec.find('SCHD').data[0];
+              } else lbl = rec.tag;
               $('<div>').append( $('<div class="rec_lbl">').text(lbl)
               .on('click',function(){
                 const next = $(this).nextAll();
@@ -481,17 +581,17 @@ function read_es_file(file) {
       ].concat(is_save ? [
         ['Pic',function(tab){
           const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data.screenshot,true);
+          draw(div,getrec('TES3','SCRS').data[0],true);
           return div;
         }],
         ['Map',function(tab){
           const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data.map,false);
+          draw(div,getrec('FMAP','MAPD').data[0],false);
           return div;
         }],
         ['Journal',function(tab){
           const div = $('<div>');
-          const jour = getrec('JOUR','NAME').data.journal;
+          const jour = getrec('JOUR','NAME').data[0];
           div.html('<P>'+jour[0].replace(
             /@([^#]*)#/g, '<span class="jourlink">$1</span>'
           ));
@@ -508,7 +608,7 @@ function read_es_file(file) {
             if (rec.tag=='DIAL') {
               const pair = ['NAME','XIDX'].map(x => {
                 const sub = rec.find(x);
-                return sub ? sub.data.name : null;
+                return sub ? sub.data[0] : null;
               });
               if (pair[0] && pair[1])
                 dial = pair;
@@ -516,7 +616,7 @@ function read_es_file(file) {
             if (rec.tag=='INFO') {
               const pair = ['INAM','ACDT'].map(x => {
                 const sub = rec.find(x);
-                return sub ? sub.data.name : null;
+                return sub ? sub.data[0] : null;
               });
               if (pair[0] && pair[1])
                 infos[pair[0]] = { acdt: pair[1], dial: dial };
@@ -525,7 +625,7 @@ function read_es_file(file) {
               if (rec.tag=='NPC_' || rec.tag=='CREA') {
                 const pair = ['NAME','FNAM'].map(x => {
                   const sub = rec.find(x);
-                  return sub ? sub.data.name : null;
+                  return sub ? sub.data[0] : null;
                 });
                 if (pair[0] && pair[1])
                   names[pair[0]] = pair[1];
@@ -542,9 +642,9 @@ function read_es_file(file) {
               const p = $('<p>').appendTo(div);
               let s;
               const span = text => s = $('<span>').text(text).appendTo(p);
-              span(ques.find('NAME').data.name).addClass('ques');
+              span(ques.find('NAME').data[0]).addClass('ques');
               for (let i=0; i<n; ++i) {
-                const inam = data[i].data.data;
+                const inam = data[i].data[0];
                 const info = infos[inam];
                 if (info) {
                   if (i==0 && info.dial) {
@@ -582,7 +682,6 @@ function read_es_file(file) {
         });
       }
       $('#main').show();
-      */
 
     } else if (str(0,4)=="TES4") {
 
@@ -592,7 +691,6 @@ function read_es_file(file) {
       ].concat(is_save ? [
         ['Info',function(tab){
           const div = $('<div>');
-          console.time('a');
           let offset = 12;
           function get(f) { return ([,offset] = f.r(offset))[0]; }
           const header = {
@@ -642,7 +740,6 @@ function read_es_file(file) {
           for (let i=0; i<pluginsNum; ++i)
             $('<p class="narrow">').text(get(_bzstr)).appendTo(row);
 
-          console.timeEnd('a');
           return div;
         }]
       ] : [
