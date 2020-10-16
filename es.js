@@ -235,47 +235,28 @@ const format3 = {
     ['local size', _u4],
   ],
   "SPLMNAME": [ ['', _subview] ],
+  "LEVIINAM": [ ['item', _zstr] ],
 };
 
+const recref3_item = [
+  ['ALCH','NAME'],
+  ['CLOT','NAME'],
+  ['ARMO','NAME'],
+  ['WEAP','NAME'],
+  ['BOOK','NAME'],
+  ['INGR','NAME'],
+  ['LEVI','NAME'],
+];
 const recref3 = {
   "NPC_CNAM-class": [['CLAS','NAME']],
   "NPC_NPCS-spell": [['SPEL','NAME']],
-  "NPC_NPCO-item": [
-    ['ALCH','NAME'],
-    ['CLOT','NAME'],
-    ['ARMO','NAME'],
-    ['WEAP','NAME'],
-    ['BOOK','NAME'],
-  ],
+  "NPC_NPCO-item": recref3_item,
   "CREANPCS-spell": [['SPEL','NAME']],
-  "CREANPCO-item": [
-    ['ALCH','NAME'],
-    ['CLOT','NAME'],
-    ['ARMO','NAME'],
-    ['WEAP','NAME'],
-    ['BOOK','NAME'],
-  ],
-  "CRECNPCO-item": [
-    ['ALCH','NAME'],
-    ['CLOT','NAME'],
-    ['ARMO','NAME'],
-    ['WEAP','NAME'],
-    ['BOOK','NAME'],
-  ],
-  "CNTCNPCO-item": [
-    ['ALCH','NAME'],
-    ['CLOT','NAME'],
-    ['ARMO','NAME'],
-    ['WEAP','NAME'],
-    ['BOOK','NAME'],
-  ],
-  "CONTNPCO-item": [
-    ['ALCH','NAME'],
-    ['CLOT','NAME'],
-    ['ARMO','NAME'],
-    ['WEAP','NAME'],
-    ['BOOK','NAME'],
-  ],
+  "CREANPCO-item": recref3_item,
+  "CRECNPCO-item": recref3_item,
+  "CNTCNPCO-item": recref3_item,
+  "CONTNPCO-item": recref3_item,
+  "LEVIINAM-item": recref3_item,
   "CLOTENAM-enchant": [['ENCH','NAME']],
   "ARMOENAM-enchant": [['ENCH','NAME']],
   "WEAPENAM-enchant": [['ENCH','NAME']],
@@ -287,6 +268,7 @@ const recref3 = {
     ['ARMO','NAME'],
     ['WEAP','NAME'],
     ['BOOK','NAME'],
+    ['INGR','NAME'],
   ],
 };
 
