@@ -537,7 +537,7 @@ function read_es_file(file) {
               const name = [ rec.find('NAME'), rec.find('FNAM') ];
               if (name[0]) {
                 lbl = name[0].data[0];
-                if (lbl.length < 256) {
+                if (lbl.length && lbl.length < 256) {
                   if (name[1]) lbl += ' ('+name[1].data[0]+')';
                 } else lbl = rec.tag;
               } else if (rec.tag==='SCPT') {
