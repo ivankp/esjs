@@ -6,6 +6,9 @@
 body { margin: 5px; }
 pre { margin: 0; }
 
+a { text-decoration: none; }
+a:hover { text-decoration: underline; }
+
 .tt { font-family: monospace; }
 .mc { font-family: MagicCards; }
 .bold { font-weight: bold; }
@@ -96,4 +99,13 @@ span.editN::after { content: "cancel"; }
 .rec_data textarea {
   font-family: inherit;
   font-size: inherit;
+}
+
+.map {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 10px;
+}
+.map > div:nth-child(2) > :not(:last-child) {
+  margin-bottom: 10px;
 }

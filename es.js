@@ -486,6 +486,7 @@ function draw(div,data,pic) {
       img.data[i+3] = 255;
     }
   ctx.putImageData(img,0,0);
+  return ctx;
 }
 
 function read_es_file(file) {
@@ -559,22 +560,53 @@ function read_es_file(file) {
         }]
       ].concat(is_save ? [
         ['Pic',function(tab){
-          const div = $('<div>');
-          draw(div,getrec('TES3','SCRS').data[0],true);
-          return div;
+          const fr = new DocumentFragment();
+          draw(fr,getrec('TES3','SCRS').data[0],true);
+          return fr;
         }],
         ['Map',function(tab){
-          const div = $('<div>');
-          draw(div,getrec('FMAP','MAPD').data[0],false);
+          const div = $('<div class="map">');
+          const ctx = draw(div,getrec('FMAP','MAPD').data[0],false);
+          const a = $('<a>').prop({
+            download: file.name.replace(
+              /^(?:.*[\\\/])?(.*)(?:\.ess$)/, '$1_map.png'),
+            href: ctx.canvas.toDataURL('image/png').replace(
+              'image/png', 'image/octet-stream')
+          }).hide();
+          $('<div>').append([
+            a,
+            $('<button>').text('Save as png').on('click',function(){
+              a[0].click();
+            }),
+            $('<input type="file">').on('change',function(){
+              const files = this.files;
+              if (files && files.length==1) {
+                const img = new Image;
+                img.onload = function() {
+                  if (this.width===512 && this.height===512) {
+                    ctx.drawImage(img,0,0);
+                  } else alert('Map image must be 512×512. Given image is '
+                    + this.width + '×' + this.height
+                  );
+                }
+                img.src = URL.createObjectURL(files[0]);
+              }
+            }),
+            $('<button>').text('Replace').on('click',function(){
+              console.log('Replace');
+            }),
+          ]).appendTo(div);
           return div;
         }],
         ['Journal',function(tab){
-          const div = $('<div>');
+          const div = document.createElement('div');
           const jour = getrec('JOUR','NAME').data[0];
-          div.html('<P>'+jour[0].replace(
+          div.innerHTML = '<P>'+jour[0].replace(
             /@([^#]*)#/g, '<span class="jourlink">$1</span>'
-          ));
-          div.children().each((i,li) => { div.prepend(li); });
+          );
+          const n = div.childNodes.length;
+          for (let i=1; i<n; ++i)
+            div.prepend(div.childNodes[i]);
           return div;
         }],
         ['Quests',function(tab){
@@ -746,8 +778,7 @@ function read_es_file(file) {
 $(() => {
   $('#file_name').on('change',function(e){
     const files = this.files;
-    if (files && files.length==1) {
+    if (files && files.length==1)
       read_es_file(files[0]);
-    } else alert('Invalid input file');
   });
 });
