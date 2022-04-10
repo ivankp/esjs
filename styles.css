@@ -10,11 +10,24 @@ a:hover { text-decoration: underline; }
   font-family: monospace;
   font-size: small;
 }
-#recs_list > div > div:first-child:hover {
-  background-color: #F8CD4E;
+#recs_list > div > div:first-child {
   cursor: pointer;
   display: inline-block;
 }
-#recs_list > div > div:not(:only-child) {
+#recs_list > div > div:first-child:hover {
+  background-color: #F8CD4E;
+}
+#recs_list > div > div:first-child:not(:only-child) {
   font-weight: bold;
+}
+#recs_list table {
+  margin: 1px 0px;
+  border: 1px solid #8F5902;
+  border-collapse: collapse;
+}
+#recs_list table > tr:hover {
+  background-color: #D3C29B;
+}
+#recs_list table td {
+  padding: 1px 3px;
 }

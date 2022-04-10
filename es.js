@@ -91,12 +91,18 @@ function Record(a,parent=null) {
 Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag === tag);
 }
-Record.prototype.pretty_name = function(tag) {
-  let name = this.find('NAME');
-  if (name) {
-    const l = name.size > 128;
-    name = _zstr(name.data, l ? 128 : name.size);
-    if (l && name) name += '…';
+const trunc = (a,n,m) => {
+  const l = n > m;
+  let name = _zstr(a, l ? m : n);
+  if (l && name) name += '…';
+  return name;
+};
+Record.prototype.pretty_name = function() {
+  let name;
+  if (name = this.find('NAME')) name = trunc(name.data,name.size,128);
+  if (!name) {
+    if (this.tag === 'CELL')
+      if (name = this.find('RGNN')) name = trunc(name.data,name.size,128);
   }
   if (!name) name = this.tag;
   return name;
