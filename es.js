@@ -103,8 +103,8 @@ Record.prototype.pretty_name = function(tag) {
 }
 
 function make_html_es3() {
-  const main = _id('main');
-  const sel = clear( _id('recs_type') ?? $(main,'select',{id:'recs_type'}) );
+  const main = clear(_id('main'));
+  const sel = $(main,'select',{id:'recs_type'});
   const keys = Object.keys(tags).sort();
   keys.unshift(keys.splice(keys.findIndex(x => x.match(/^TES[3-9]/)),1)[0]);
   for (const tag of keys)
@@ -142,6 +142,39 @@ function make_html_es3() {
 }
 
 function make_html_bsa3() {
+  const root = { };
+  for (const [name,m] of Object.entries(recs)) {
+    const path = name.split('\\');
+    let dir = root;
+    for (let i=0, n=path.length-1; i<n; ++i) {
+      dir = (dir[path[i]] ??= { });
+    }
+    dir[last(path)] = m;
+  }
+  (function f(dir,ul) {
+    for (const [k,v] of Object.entries(dir)) {
+      const li = $(ul,'li');
+      const span = $(li,'span');
+      span.textContent = k;
+      if (v.constructor === Object) {
+        f(v,$(li,'ul'));
+      } else {
+        span.onclick = function() {
+          console.log(...v);
+          console.log(_u1n(v[1],v[0]));
+          const url = window.URL.createObjectURL(new Blob(
+            [_u1n(v[1],v[0])],
+            { type: 'application/octet-stream' }
+          ));
+          const a = window.document.createElement('a');
+          a.href = url;
+          a.download = k;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        };
+      }
+    }
+  })(root,$(clear(_id('main')),'ul'));
 }
 
 function read_file(file) {
@@ -164,35 +197,35 @@ function read_file(file) {
       // console.log(tags);
       make_html_es3();
     } else if (magic === 256) { // BSA
+      // https://en.uesp.net/wiki/Morrowind_Mod:BSA_File_Format
       let a = 4;
-      const hash_offset = _u4(a); a += 4;
+      const hash_offset = _u4(a)+12; a += 4;
       const num_files = _u4(a); a += 4;
       console.log({num_files});
       let f = a;
-      // const files_size_offset = new Uint32Array(view.buffer,a,num_files*2);
       a += num_files*8;
-      // const names_offset = new Uint32Array(view.buffer,a,num_files);
       let name = a;
       a += num_files*4;
-      // recs = [ ];
       recs = { };
       if (num_files > 0) {
         let b1=0, b2;
         for (let i=1; i<num_files; ++i) {
-          // b2 = names_offset[i];
-          b2 = _u4(name += 4);
-          // recs.push(_str(a+b1,b2-b1-1));
-          recs[_str(a+b1,b2-b1-1)] = [ _u4(f+4), _u4(f) ];
+          b2 = _u4(name += 4); // next file name
+          recs[_str(a+b1,b2-b1-1)] = new Uint32Array(view.buffer,f,2);
           f += 8;
           b1 = b2;
         }
         b2 = hash_offset - a;
-        // recs.push(_str(a+b1,b2-b1+11));
-        recs[_str(a+b1,b2-b1+11)] = [ _u4(f), _u4(f+4) ];
+        recs[_str(a+b1,b2-b1-1)] = new Uint32Array(view.buffer,f,2);
         console.log(recs);
+
+        a = hash_offset + num_files*8;
+        for (const m of Object.values(recs)) {
+          m[1] += a;
+        }
+        console.log( performance.now() - start );
+        make_html_bsa3();
       }
-      console.log( performance.now() - start );
-      make_html_bsa3();
     } else {
       alert("Unexpected leading 4 bytes in file "+e.target.fileName);
     }
