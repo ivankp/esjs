@@ -235,9 +235,24 @@ function read_file(file) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  _id('file').onchange = function(e){
+  const input = _id('file');
+  input.onchange = function(e){
     const files = this.files;
     if (files && files.length==1)
       read_file(files[0]);
   };
+
+  window.addEventListener('keydown', function(e) {
+    if ( e.ctrlKey && !(e.shiftKey || e.altKey || e.metaKey))
+      switch (e.which ?? e.keyCode) {
+        case 79: // Ctrl + o
+          if (input) {
+            e.preventDefault();
+            input.click();
+          }
+          break;
+        // case 83: // Ctrl + s
+        //   break;
+      }
+  });
 });
