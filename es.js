@@ -34,7 +34,6 @@ const $ = (p,...args) => {
   return p;
 }
 const clear = (x,n=0) => {
-  // for (let c; c = x.firstChild; ) x.removeChild(c);
   while (x.childElementCount > n) x.removeChild(x.lastChild);
   return x;
 }
@@ -103,29 +102,7 @@ Record.prototype.pretty_name = function(tag) {
   return name;
 }
 
-function read_file(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    view = new DataView(e.target.result);
-    recs = [ ];
-    tags = { };
-    const size = view.byteLength;
-    const start = performance.now();
-    for (let a=0; a<size; ) {
-      const r = new Record(a);
-      a += 16 + r.size;
-      recs.push(r);
-      (tags[r.tag] ??= []).push(r);
-    }
-    console.log( performance.now() - start );
-    // console.log(tags);
-    make_html();
-    console.log( performance.now() - start );
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function make_html() {
+function make_html_es3() {
   const main = _id('main');
   const sel = clear( _id('recs_type') ?? $(main,'select',{id:'recs_type'}) );
   const keys = Object.keys(tags).sort();
@@ -162,6 +139,66 @@ function make_html() {
     }
   };
   sel.onchange();
+}
+
+function make_html_bsa3() {
+}
+
+function read_file(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    view = new DataView(e.target.result);
+    recs = [ ];
+    tags = { };
+    const size = view.byteLength;
+    const start = performance.now();
+    const magic = _u4(0);
+    if (magic === 861095252) { // TES3
+      for (let a=0; a<size; ) {
+        const r = new Record(a);
+        a += 16 + r.size;
+        recs.push(r);
+        (tags[r.tag] ??= []).push(r);
+      }
+      console.log( performance.now() - start );
+      // console.log(tags);
+      make_html_es3();
+    } else if (magic === 256) { // BSA
+      let a = 4;
+      const hash_offset = _u4(a); a += 4;
+      const num_files = _u4(a); a += 4;
+      console.log({num_files});
+      let f = a;
+      // const files_size_offset = new Uint32Array(view.buffer,a,num_files*2);
+      a += num_files*8;
+      // const names_offset = new Uint32Array(view.buffer,a,num_files);
+      let name = a;
+      a += num_files*4;
+      // recs = [ ];
+      recs = { };
+      if (num_files > 0) {
+        let b1=0, b2;
+        for (let i=1; i<num_files; ++i) {
+          // b2 = names_offset[i];
+          b2 = _u4(name += 4);
+          // recs.push(_str(a+b1,b2-b1-1));
+          recs[_str(a+b1,b2-b1-1)] = [ _u4(f+4), _u4(f) ];
+          f += 8;
+          b1 = b2;
+        }
+        b2 = hash_offset - a;
+        // recs.push(_str(a+b1,b2-b1+11));
+        recs[_str(a+b1,b2-b1+11)] = [ _u4(f), _u4(f+4) ];
+        console.log(recs);
+      }
+      console.log( performance.now() - start );
+      make_html_bsa3();
+    } else {
+      alert("Unexpected leading 4 bytes in file "+e.target.fileName);
+    }
+    console.log( performance.now() - start );
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
