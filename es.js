@@ -58,14 +58,18 @@ const _zstr = (a,n) => {
   return utf8decoder.decode(i===-1 ? arr : arr.subarray(0,i));
 };
 
-const defs = {
+const structs3 = {
   "NAME": [ ['name', _zstr] ],
   "FNAM": [ ['name', _zstr] ],
   "MODL": [ ['model', _zstr] ],
   "ITEX": [ ['texture', _zstr] ],
+  "TEXT": [ ['texture', _zstr] ],
   "SCRI": [ ['script', _zstr] ],
   "LUAT": [ ['lua', _zstr] ],
+
+  "ARMONAME": [ ['id', _zstr] ],
 };
+const get_struct3 = (t1,t2) => structs3[t1+t2] ?? structs3[t2] ?? [[null,null]];
 
 function Record(a,parent=null) {
   this.tag = _str(a,4); a += 4;
@@ -108,6 +112,20 @@ Record.prototype.pretty_name = function() {
   return name;
 }
 
+const fmt_ascii = (e,a,n) => {
+  for (const end=a+n; a<end; ++a) {
+    const c = _u1(a);
+    $(e,'span',['byte']).textContent =
+      (31 < c && c < 127)
+      ? String.fromCharCode(c)
+      : c.toString(16).padStart(2,'0');
+  }
+}
+const fmt_hex = (e,a,n) => {
+  for (const end=a+n; a<end; ++a)
+    $(e,'span',['byte']).textContent = _u1(a).toString(16).padStart(2,'0');
+}
+
 function make_html_es3() {
   const main = clear(_id('main'));
   const sel = $(main,'select',{id:'recs_type'});
@@ -131,13 +149,32 @@ function make_html_es3() {
             const t2 = r2.tag;
             const tr = $(table,'tr');
             $(tr,'td').textContent = t2;
-            let td = $(tr,'td');
-            for (let a=r2.data, end=a+r2.size; a<end; ++a) {
-              const c = _u1(a);
-              $(td,'span').textContent =
-                (31 < c && c < 127)
-                ? String.fromCharCode(c)
-                : c.toString(16).padStart(2,'0');
+            const td = $(tr,'td');
+
+            const struct = get_struct3(t1,t2);
+            let offset = 0;
+            for (const [name,f] of struct) {
+              const span = $(td,'span',['field'],'span');
+              const states = [
+                ['hex',fmt_hex],
+                ['ascii',fmt_ascii]
+              ];
+              if (name) states.push([ name,
+                (e,a,n) => { e.textContent = f(a,n); }
+              ]);
+
+              const a = offset;
+              span.textContent = last(states)[0];
+              offset += last(states)[1](
+                $(span.parentElement,'span'), r2.data+a, r2.size-a) ?? 0;
+
+              span.onclick = function() {
+                states.unshift(states.pop());
+                const state = last(states);
+                this.textContent = state[0];
+                state[1](
+                  $(clear(this.parentElement,1),'span'), r2.data+a, r2.size-a);
+              };
             }
           }
         }

@@ -4,8 +4,6 @@ div, span { padding: 0; border: 0; margin: 0; }
 a { text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-.click { cursor: pointer; }
-
 #recs_list {
   font-family: monospace;
   font-size: small;
@@ -30,4 +28,18 @@ a:hover { text-decoration: underline; }
 }
 #recs_list table td {
   padding: 1px 3px;
+}
+
+#recs_list .field > *:first-child {
+  cursor: pointer;
+  font-weight: bold;
+  margin-right: 3px;
+  user-select: none;
+}
+#recs_list .field:not(:first-child) {
+  margin-left: 3px;
+}
+#recs_list .byte {
+  display: inline-block;
+  width: 2ch;
 }
