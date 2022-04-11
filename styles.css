@@ -43,3 +43,8 @@ a:hover { text-decoration: underline; }
   display: inline-block;
   width: 2ch;
 }
+
+#bsa_list {
+  font-family: monospace;
+  font-size: small;
+}

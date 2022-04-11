@@ -67,7 +67,11 @@ const structs3 = {
   "SCRI": [ ['script', _zstr] ],
   "LUAT": [ ['lua', _zstr] ],
 
+  "TES3MAST": [ ['esm', _zstr] ],
+
   "ARMONAME": [ ['id', _zstr] ],
+
+  "BOOKTEXT": [ ['text', _zstr] ],
 };
 const get_struct3 = (t1,t2) => structs3[t1+t2] ?? structs3[t2] ?? [[null,null]];
 
@@ -195,7 +199,16 @@ function make_html_bsa3() {
     dir[last(path)] = m;
   }
   (function f(dir,ul) {
-    for (const [k,v] of Object.entries(dir)) {
+    for (const [k,v] of Object.entries(dir).sort(
+      ([k1,v1],[k2,v2]) => {
+        const d = (v1.constructor === Object ? 1 : 0)
+                - (v2.constructor === Object ? 1 : 0);
+        if (d!==0) return d;
+        if (k1 < k2) return -1;
+        if (k1 > k2) return  1;
+        return 0;
+      }
+    )) {
       const li = $(ul,'li');
       const span = $(li,'span');
       span.textContent = k;
@@ -203,8 +216,8 @@ function make_html_bsa3() {
         f(v,$(li,'ul'));
       } else {
         span.onclick = function() {
-          console.log(...v);
-          console.log(_u1n(v[1],v[0]));
+          // console.log(...v);
+          // console.log(_u1n(v[1],v[0]));
           const url = window.URL.createObjectURL(new Blob(
             [_u1n(v[1],v[0])],
             { type: 'application/octet-stream' }
@@ -217,7 +230,7 @@ function make_html_bsa3() {
         };
       }
     }
-  })(root,$(clear(_id('main')),'ul'));
+  })(root,$(clear(_id('main')),'div',{id:'bsa_list'},'ul'));
 }
 
 function read_file(file) {
