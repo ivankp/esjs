@@ -127,18 +127,42 @@ const blanks = {
   0x0D: '\\r',
 };
 
+const enable_edit = (span,len) => {
+  span.addEventListener('contextmenu',function(e) {
+    e.preventDefault();
+    const edit = $(null,'textarea',{cols:len,rows:1});
+    edit.value = this.textContent;
+    this.style.display = "none";
+    this.parentElement.insertBefore(edit,this);
+    edit.addEventListener('keydown', function(e) {
+      if (!e.shiftKey && (e.which ?? e.keyCode)===13) {
+        e.preventDefault();
+        span.textContent = this.value;
+        this.remove();
+        span.style.display = null;
+      }
+    });
+    edit.focus();
+  });
+};
+
 const fmt_ascii = (e,a,n) => {
   for (const end=a+n; a<end; ++a) {
     const c = _u1(a);
-    $(e,'span',['byte']).textContent =
+    const span = $(e,'span',['byte']);
+    span.textContent =
       (31 < c && c < 127)
       ? String.fromCharCode(c)
       : blanks[c] ?? c.toString(16).padStart(2,'0');
+    enable_edit(span,2);
   }
 }
 const fmt_hex = (e,a,n) => {
-  for (const end=a+n; a<end; ++a)
-    $(e,'span',['byte']).textContent = _u1(a).toString(16).padStart(2,'0');
+  for (const end=a+n; a<end; ++a) {
+    const span = $(e,'span',['byte']);
+    span.textContent = _u1(a).toString(16).padStart(2,'0');
+    enable_edit(span,2);
+  }
 }
 
 function make_html_es3() {
@@ -174,9 +198,10 @@ function make_html_es3() {
                 ['hex',fmt_hex],
                 ['ascii',fmt_ascii]
               ];
-              if (name) states.push([ name,
-                (e,a,n) => { e.textContent = `${f(a,n)}`; }
-              ]);
+              if (name) states.push([ name, (e,a,n) => {
+                e.textContent = `${f(a,n)}`;
+                enable_edit(e,32);
+              }]);
 
               const a = offset;
               span.textContent = last(states)[0];

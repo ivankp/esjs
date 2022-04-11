@@ -40,10 +40,14 @@ a:hover { text-decoration: underline; }
 #recs_list .field:not(:first-child) {
   margin-left: 3px;
 }
-#recs_list .byte {
+#recs_list span.byte {
   display: inline-block;
   width: 2ch;
   white-space: pre;
+}
+#recs_list textarea {
+  font-size: small;
+  font-family: monospace;
 }
 
 #bsa_list {
