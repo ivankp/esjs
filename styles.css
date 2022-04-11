@@ -28,6 +28,7 @@ a:hover { text-decoration: underline; }
 }
 #recs_list table td {
   padding: 1px 3px;
+  vertical-align: top;
 }
 
 #recs_list .field > *:first-child {
@@ -42,6 +43,7 @@ a:hover { text-decoration: underline; }
 #recs_list .byte {
   display: inline-block;
   width: 2ch;
+  white-space: pre;
 }
 
 #bsa_list {

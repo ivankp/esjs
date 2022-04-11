@@ -62,15 +62,19 @@ const structs3 = {
   "NAME": [ ['name', _zstr] ],
   "FNAM": [ ['name', _zstr] ],
   "MODL": [ ['model', _zstr] ],
+  "SCRI": [ ['script', _zstr] ],
   "ITEX": [ ['texture', _zstr] ],
   "TEXT": [ ['texture', _zstr] ],
-  "SCRI": [ ['script', _zstr] ],
+  "DESC": [ ['descr', _zstr] ],
+  "FLTV": [ ['float', _f4] ],
+  "INTV": [ ['float', _i4] ],
   "LUAT": [ ['lua', _zstr] ],
 
   "TES3MAST": [ ['esm', _zstr] ],
 
   "ARMONAME": [ ['id', _zstr] ],
 
+  "BOOKNAME": [ ['id', _zstr] ],
   "BOOKTEXT": [ ['text', _zstr] ],
 };
 const get_struct3 = (t1,t2) => structs3[t1+t2] ?? structs3[t2] ?? [[null,null]];
@@ -116,13 +120,20 @@ Record.prototype.pretty_name = function() {
   return name;
 }
 
+const blanks = {
+  0x00: '\\0',
+  0x09: '\\t',
+  0x0A: '\\n',
+  0x0D: '\\r',
+};
+
 const fmt_ascii = (e,a,n) => {
   for (const end=a+n; a<end; ++a) {
     const c = _u1(a);
     $(e,'span',['byte']).textContent =
       (31 < c && c < 127)
       ? String.fromCharCode(c)
-      : c.toString(16).padStart(2,'0');
+      : blanks[c] ?? c.toString(16).padStart(2,'0');
   }
 }
 const fmt_hex = (e,a,n) => {
@@ -164,7 +175,7 @@ function make_html_es3() {
                 ['ascii',fmt_ascii]
               ];
               if (name) states.push([ name,
-                (e,a,n) => { e.textContent = f(a,n); }
+                (e,a,n) => { e.textContent = `${f(a,n)}`; }
               ]);
 
               const a = offset;
