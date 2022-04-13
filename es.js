@@ -234,7 +234,8 @@ function make_html_bsa3() {
     }
     dir[last(path)] = m;
   }
-  (function f(dir,ul) {
+  const bsa_div = $(clear(_id('main')),'div',{id:'bsa_list'});
+  (function f(dir,path='') {
     for (const [k,v] of Object.entries(dir).sort(
       ([k1,v1],[k2,v2]) => {
         const d = (v1.constructor === Object ? 1 : 0)
@@ -245,12 +246,16 @@ function make_html_bsa3() {
         return 0;
       }
     )) {
-      const li = $(ul,'li');
-      const span = $(li,'span');
-      span.textContent = k;
       if (v.constructor === Object) {
-        f(v,$(li,'ul'));
+        f(v, path+k+'\\');
       } else {
+        const div = $(bsa_div,'div');
+        if (path.length) {
+          const span = $(div,'span');
+          span.textContent = path;
+        }
+        const span = $(div,'span');
+        span.textContent = k;
         span.onclick = function() {
           // console.log(...v);
           // console.log(_u1n(v[1],v[0]));
@@ -266,7 +271,7 @@ function make_html_bsa3() {
         };
       }
     }
-  })(root,$(clear(_id('main')),'div',{id:'bsa_list'},'ul'));
+  })(root);
 }
 
 function read_file(file) {

@@ -54,3 +54,10 @@ a:hover { text-decoration: underline; }
   font-family: monospace;
   font-size: small;
 }
+#bsa_list > div > span:first-child {
+  color: gray;
+}
+#bsa_list > div > span:not(:first-child):hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
