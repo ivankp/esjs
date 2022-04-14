@@ -32,13 +32,22 @@ const $ = (p,...args) => {
     }
   }
   return p;
-}
+};
 const clear = (x,n=0) => {
   while (x.childElementCount > n) x.removeChild(x.lastChild);
   return x;
-}
+};
 const last = xs => xs[xs.length-1];
 const emplace = (arr,x) => arr[arr.push(x)-1];
+
+const download = (name,data,params) => {
+  const url = window.URL.createObjectURL(new Blob( [data], params ));
+  const a = window.document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
 var view, recs, tags;
 
@@ -156,14 +165,14 @@ const fmt_ascii = (e,a,n) => {
       : blanks[c] ?? c.toString(16).padStart(2,'0');
     enable_edit(span,2);
   }
-}
+};
 const fmt_hex = (e,a,n) => {
   for (const end=a+n; a<end; ++a) {
     const span = $(e,'span',['byte']);
     span.textContent = _u1(a).toString(16).padStart(2,'0');
     enable_edit(span,2);
   }
-}
+};
 
 function make_html_es3() {
   const main = clear(_id('main'));
@@ -256,18 +265,8 @@ function make_html_bsa3() {
         }
         const span = $(div,'span');
         span.textContent = k;
-        span.onclick = function() {
-          // console.log(...v);
-          // console.log(_u1n(v[1],v[0]));
-          const url = window.URL.createObjectURL(new Blob(
-            [_u1n(v[1],v[0])],
-            { type: 'application/octet-stream' }
-          ));
-          const a = window.document.createElement('a');
-          a.href = url;
-          a.download = k;
-          a.click();
-          window.URL.revokeObjectURL(url);
+        span.onclick = function(){
+          download(k, _u1n(v[1],v[0]), { type: 'application/octet-stream' });
         };
       }
     }
@@ -283,7 +282,8 @@ function read_file(file) {
     const size = view.byteLength;
     const start = performance.now();
     const magic = _u4(0);
-    if (magic === 861095252) { // TES3
+    if (magic === 0x33534554) { // TES3
+      // https://en.uesp.net/wiki/Morrowind_Mod:Mod_File_Format
       for (let a=0; a<size; ) {
         const r = new Record(a);
         a += 16 + r.size;
@@ -293,12 +293,11 @@ function read_file(file) {
       console.log( performance.now() - start );
       // console.log(tags);
       make_html_es3();
-    } else if (magic === 256) { // BSA
+    } else if (magic === 0x00000100) { // BSA
       // https://en.uesp.net/wiki/Morrowind_Mod:BSA_File_Format
       let a = 4;
       const hash_offset = _u4(a)+12; a += 4;
       const num_files = _u4(a); a += 4;
-      console.log({num_files});
       let f = a;
       a += num_files*8;
       let name = a;
@@ -314,7 +313,6 @@ function read_file(file) {
         }
         b2 = hash_offset - a;
         recs[_str(a+b1,b2-b1-1)] = new Uint32Array(view.buffer,f,2);
-        console.log(recs);
 
         a = hash_offset + num_files*8;
         for (const m of Object.values(recs)) {
@@ -329,6 +327,11 @@ function read_file(file) {
     console.log( performance.now() - start );
   };
   reader.readAsArrayBuffer(file);
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide
+function parse_dds() {
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {
