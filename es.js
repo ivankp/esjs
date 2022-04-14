@@ -330,7 +330,48 @@ function read_file(file) {
 }
 
 // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide
-function parse_dds() {
+function parse_dds(a,n) {
+  if (n<128 || _u4(a) !== 0x20534444) return null;
+  a += 4;
+  // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
+  // DDS_HEADER
+  //   4   0  4 DWORD           dwSize;
+  //   8   4  4 DWORD           dwFlags;
+  //  12   8  4 DWORD           dwHeight;
+  //  16  12  4 DWORD           dwWidth;
+  //  20  16  4 DWORD           dwPitchOrLinearSize;
+  //  24  20  4 DWORD           dwDepth;
+  //  28  24  4 DWORD           dwMipMapCount;
+  //  32  28 44 DWORD           dwReserved1[11];
+  //  76  72 32 DDS_PIXELFORMAT ddspf;
+  // 108 104  4 DWORD           dwCaps;
+  // 112 108  4 DWORD           dwCaps2;
+  // 116 112  4 DWORD           dwCaps3;
+  // 120 116  4 DWORD           dwCaps4;
+  // 124 120  4 DWORD           dwReserved2;
+
+  // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat
+  // DDS_PIXELFORMAT
+  //  76   0  4 DWORD dwSize;
+  //  80   4  4 DWORD dwFlags;
+  //  84   8  4 DWORD dwFourCC;
+  //  88  12  4 DWORD dwRGBBitCount;
+  //  92  16  4 DWORD dwRBitMask;
+  //  96  20  4 DWORD dwGBitMask;
+  // 100  24  4 DWORD dwBBitMask;
+  // 104  28  4 DWORD dwABitMask;
+
+  // If in DDS_PIXELFORMAT
+  // dwFlags == DDPF_FOURCC  and  dwFourCC == "DX10"
+  // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10
+  // DDS_HEADER_DXT10
+  // 128   0  4 DXGI_FORMAT              dxgiFormat;
+  // 132   4  4 D3D10_RESOURCE_DIMENSION resourceDimension;
+  // 136   8  4 UINT                     miscFlag;
+  // 140  12  4 UINT                     arraySize;
+  // 144  16  4 UINT                     miscFlags2;
+
+  // data @ 128 or 148
 
 }
 
