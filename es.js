@@ -129,13 +129,6 @@ Record.prototype.pretty_name = function() {
   return name;
 }
 
-const blanks = {
-  0x00: '\\0',
-  0x09: '\\t',
-  0x0A: '\\n',
-  0x0D: '\\r',
-};
-
 const enable_edit = (span,len) => {
   span.addEventListener('contextmenu',function(e) {
     e.preventDefault();
@@ -154,6 +147,8 @@ const enable_edit = (span,len) => {
     edit.focus();
   });
 };
+
+const blanks = { 0x00:'\\0', 0x09:'\\t', 0x0A:'\\n', 0x0D:'\\r' };
 
 const fmt_ascii = (e,a,n) => {
   for (const end=a+n; a<end; ++a) {
@@ -266,7 +261,39 @@ function make_html_bsa3() {
         const span = $(div,'span');
         span.textContent = k;
         span.onclick = function(){
-          download(k, _u1n(v[1],v[0]), { type: 'application/octet-stream' });
+          const p = this.parentElement;
+          if (p.childElementCount > 2) {
+            clear(p,2);
+          } else {
+            const table = $(p,'table');
+            const tr = $(table,'tr');
+            try {
+              const dds = new parse_dds(v[1],v[0]);
+              console.log(dds);
+
+              const width = dds.dwWidth;
+              const height = dds.dwHeight;
+              const canv = $(tr,'td','canvas',{ width, height });
+              const ctx = canv.getContext('2d');
+              const img = ctx.createImageData(width,height);
+              const len = img.data.length;
+              for (let i=0; i<len; i+=4) {
+                /* R */ img.data[i  ] = 0;
+                /* G */ img.data[i+1] = dds.data[i/4];
+                /* B */ img.data[i+2] = 0;
+                /* A */ img.data[i+3] = 255;
+              }
+              ctx.putImageData(img,0,0);
+            } catch { }
+            let td = $(tr,'td');
+            td.textContent = `size: ${v[0]}`;
+            td = $(tr,'td');
+            let div = $(td,'div',['link']);
+            div.textContent = 'save';
+            // div.onclick = function(){
+            //   download(k, _u1n(v[1],v[0]), {type:'application/octet-stream'});
+            // };
+          }
         };
       }
     }
@@ -331,8 +358,7 @@ function read_file(file) {
 
 // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide
 function parse_dds(a,n) {
-  if (n<128 || _u4(a) !== 0x20534444) return null;
-  a += 4;
+  if (n<128 || _u4(a) !== 0x20534444) throw null;
   // https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
   // DDS_HEADER
   //   4   0  4 DWORD           dwSize;
@@ -373,6 +399,12 @@ function parse_dds(a,n) {
 
   // data @ 128 or 148
 
+  this.dwSize = _u4(a+4);
+  this.dwHeight = _u4(a+12);
+  this.dwWidth = _u4(a+16);
+  this.dwPitchOrLinearSize = _u4(a+20);
+
+  this.data = _u1n(a+128,n-128);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
