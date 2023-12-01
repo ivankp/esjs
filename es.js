@@ -96,6 +96,8 @@ function Record(a,parent=null) {
     // this.flags = u1n(a,8);
     a += 8;
     this.data = a;
+    // TODO
+    // this.data = [ new DataView(view.buffer,a,size) ];
     this.children = [ ];
     const b = a + this.size;
     while (a < b)
@@ -108,7 +110,6 @@ function Record(a,parent=null) {
     this.parent = parent;
   }
 }
-// Record.prototype.tag = function() { return _str(this.a,4); }
 Record.prototype.find = function(tag) {
   return this.children.find(x => x.tag === tag);
 }
@@ -129,17 +130,32 @@ Record.prototype.pretty_name = function() {
   return name;
 }
 
-const enable_edit = (span,len) => {
+const enable_edit = (span,cols,r2,a,n,check,repr) => {
   span.addEventListener('contextmenu',function(e) {
     e.preventDefault();
-    const edit = $(null,'textarea',{cols:len,rows:1});
+    const edit = $(null,'textarea',{cols,rows:1});
     edit.value = this.textContent;
     this.style.display = "none";
     this.parentElement.insertBefore(edit,this);
     edit.addEventListener('keydown', function(e) {
       if (!e.shiftKey && (e.which ?? e.keyCode)===13) {
         e.preventDefault();
-        span.textContent = this.value;
+        // TODO: edit values
+        // TODO: user ArrayBuffer for data instead of offset
+        const val = check(this.value);
+        if (val) {
+          const edit = new Uint8Array(r2.size+val.length-n);
+          if (Array.isArray(r2.data)) {
+            r2.data.push(edit);
+          } else {
+            edit.set(_u1n(r2.data,a));
+            edit.set(val,a);
+            edit.set(_u1n(r2.data+a+n,r2.size-(a+n)));
+            r2.data = [ r2.data, edit ];
+          }
+          // span.textContent = this.value;
+          repr();
+        }
         this.remove();
         span.style.display = null;
       }
@@ -149,6 +165,17 @@ const enable_edit = (span,len) => {
 };
 
 const blanks = { 0x00:'\\0', 0x09:'\\t', 0x0A:'\\n', 0x0D:'\\r' };
+
+const ascii = (a,n) => {
+  let str = '';
+  for (const end=a+n; a<end; ++a) {
+    const c = _u1(a);
+    str += (31 < c && c < 127)
+      ? String.fromCharCode(c)+' '
+      : blanks[c] ?? c.toString(16).padStart(2,'0');
+  }
+  return str;
+};
 
 const fmt_ascii = (e,a,n) => {
   for (const end=a+n; a<end; ++a) {
@@ -169,7 +196,45 @@ const fmt_hex = (e,a,n) => {
   }
 };
 
-function make_html_es3() {
+const make_xml_es3 = () => {
+  let xml = '<esxml>\n';
+  for (const rec1 of recs) {
+    const t1 = rec1.tag;
+    xml += `<${t1} n="${rec1.size}" f="${ascii(rec1.data-8,8)}">\n`;
+    for (const rec2 of rec1.children) {
+      const t2 = rec2.tag;
+      xml += ` <${t2} n="${rec2.size}">`;
+      const struct = get_struct3(t1,t2);
+      let offset = 0;
+      for (const [name,f] of struct) {
+        // if (name) states.push([ name, (e,a,n) => {
+        //   e.textContent = `${f(a,n)}`;
+        //   enable_edit(e,32);
+        // }]);
+        //
+        // const a = offset;
+        // span.textContent = last(states)[0];
+        // offset += last(states)[1](
+        //   $(span.parentElement,'span'), r2.data+a, r2.size-a) ?? 0;
+        //
+        // span.onclick = function() {
+        //   states.unshift(states.pop());
+        //   const state = last(states);
+        //   this.textContent = state[0];
+        //   state[1](
+        //     $(clear(this.parentElement,1),'span'), r2.data+a, r2.size-a);
+        // };
+      }
+      // xml += ascii(rec2.data,rec2.size);
+      xml += `</${t2}>\n`;
+    }
+    xml += `</${t1}>\n`;
+  }
+  xml += '</esxml>';
+  return xml;
+};
+
+function make_html_es3(file) {
   const main = clear(_id('main'));
   const sel = $(main,'select',{id:'recs_type'});
   const keys = Object.keys(tags).sort();
@@ -204,7 +269,7 @@ function make_html_es3() {
               ];
               if (name) states.push([ name, (e,a,n) => {
                 e.textContent = `${f(a,n)}`;
-                enable_edit(e,32);
+                enable_edit(e,32,r2,a,n);
               }]);
 
               const a = offset;
@@ -226,6 +291,16 @@ function make_html_es3() {
     }
   };
   sel.onchange();
+
+  const xml_button = $(_id('file').parentElement,'button');
+  xml_button.textContent = 'Save XML';
+  xml_button.onclick = function(){
+    download(
+      file.name.replace(/^.*[\\\/]/,'').replace(/\.[^.]+$/,'')+'.xml',
+      make_xml_es3(),
+      {type:'application/xml;charset=utf-8'}
+    );
+  };
 }
 
 function make_html_bsa3() {
@@ -301,6 +376,10 @@ function make_html_bsa3() {
 }
 
 function read_file(file) {
+  clear(_id('file').parentElement,1);
+  clear(_id('head'));
+  clear(_id('main'));
+
   const reader = new FileReader();
   reader.onload = function(e) {
     view = new DataView(e.target.result);
@@ -319,7 +398,7 @@ function read_file(file) {
       }
       console.log( performance.now() - start );
       // console.log(tags);
-      make_html_es3();
+      make_html_es3(file);
     } else if (magic === 0x00000100) { // BSA
       // https://en.uesp.net/wiki/Morrowind_Mod:BSA_File_Format
       let a = 4;
@@ -349,7 +428,7 @@ function read_file(file) {
         make_html_bsa3();
       }
     } else {
-      alert("Unexpected leading 4 bytes in file "+e.target.fileName);
+      alert("Unexpected leading 4 bytes in file "+file.name);
     }
     console.log( performance.now() - start );
   };
